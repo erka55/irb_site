@@ -1,9 +1,5 @@
 from apps.protocols.enums import ProtocolStatus
-from apps.protocols.models import (
-    Protocol,
-    ProtocolStatusHistory,
-)
-
+from apps.protocols.models import ProtocolStatusHistory
 
 ALLOWED_TRANSITIONS = {
     ProtocolStatus.DRAFT: [
