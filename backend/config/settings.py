@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'apps.audit',
     'apps.events',
     'apps.protocols',
+    'rest_framework',
 ]
 
 MIDDLEWARE = [
