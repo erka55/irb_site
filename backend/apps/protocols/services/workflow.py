@@ -1,3 +1,7 @@
+from apps.protocols.services.versioning import (
+    ProtocolVersionService,
+)
+
 from apps.protocols.enums import ProtocolStatus
 from apps.protocols.models import ProtocolStatusHistory
 
@@ -65,6 +69,11 @@ class ProtocolWorkflowService:
             to_status=target_status,
             changed_by=changed_by,
             reason=reason,
+        )
+
+        ProtocolVersionService.create_snapshot(
+            protocol=protocol,
+            user=changed_by,
         )
 
         return protocol
