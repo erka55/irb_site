@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'apps.events',
     'apps.protocols',
     'rest_framework',
+    'apps.reviews',
 ]
 
 MIDDLEWARE = [
