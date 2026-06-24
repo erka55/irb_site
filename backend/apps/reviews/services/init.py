@@ -1,2 +1,3 @@
 from .review_service import ReviewService
 from .assignment_service import ReviewAssignmentService
+from .aggregation_service import ReviewAggregationService
