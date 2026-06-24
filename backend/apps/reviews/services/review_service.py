@@ -1,4 +1,9 @@
-from apps.reviews.models import Review
+from django.utils import timezone
+
+from apps.reviews.models import (
+    Review,
+    ReviewStatus,
+)
 
 
 class ReviewService:
@@ -16,8 +21,35 @@ class ReviewService:
         )
 
     @staticmethod
-    def submit_review(review):
-        review.status = "SUBMITTED"
+    def submit_review(
+        review,
+        recommendation,
+        score,
+        comments,
+    ):
+
+        # Rule 1
+        if review.status == ReviewStatus.SUBMITTED:
+            raise ValueError(
+                "Review already submitted"
+            )
+
+        # Rule 2
+        if score < 1 or score > 5:
+            raise ValueError(
+                "Score must be between 1 and 5"
+            )
+
+        review.recommendation = recommendation
+        review.score = score
+        review.comments = comments
+
+        review.status = ReviewStatus.SUBMITTED
+        review.submitted_at = timezone.now()
+
+        # TODO:
+        # publish ReviewSubmitted event
+
         review.save()
 
         return review
