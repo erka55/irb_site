@@ -53,3 +53,23 @@ class ReviewService:
         review.save()
 
         return review
+
+    @staticmethod
+    def get_pending_reviews(reviewer_id):
+        return Review.objects.filter(
+            reviewer_id=reviewer_id,
+            status=ReviewStatus.ASSIGNED,
+        )
+
+    @staticmethod
+    def get_submitted_reviews(reviewer_id):
+        return Review.objects.filter(
+            reviewer_id=reviewer_id,
+            status=ReviewStatus.SUBMITTED,
+        )
+
+    @staticmethod
+    def get_review(review_id):
+        return Review.objects.get(
+            id=review_id
+        )
