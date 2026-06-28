@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'apps.protocols',
     'rest_framework',
     'apps.reviews',
+    'apps.decision',
 ]
 
 MIDDLEWARE = [
