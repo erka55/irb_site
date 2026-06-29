@@ -1,9 +1,10 @@
 from django.db import models
 
+from apps.core.models import BaseModel
 from .decision import Decision
 
 
-class Condition(models.Model):
+class Condition(BaseModel):
     """
     A condition attached to a conditional IRB decision.
     """
@@ -18,9 +19,8 @@ class Condition(models.Model):
 
     is_completed = models.BooleanField(default=False)
 
-    created_at = models.DateTimeField(auto_now_add=True)
-
     class Meta:
+        db_table = "decision_conditions"
         ordering = ["created_at"]
 
     def __str__(self):

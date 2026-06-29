@@ -21,10 +21,17 @@ class LetterInline(admin.TabularInline):
 
 @admin.register(Decision)
 class DecisionAdmin(admin.ModelAdmin):
-    list_display  = ['id', 'status', 'created_at', 'updated_at', 'condition_count', 'letter_count']
-    list_filter   = ['status']
-    readonly_fields = ['created_at', 'updated_at']
+    list_display  = ['short_id', 'protocol', 'tenant', 'status', 'decided_by',
+                     'created_at', 'condition_count', 'letter_count', 'is_deleted']
+    list_filter   = ['status', 'tenant', 'is_deleted']
+    search_fields = ['protocol__title', 'protocol__protocol_number']
+    autocomplete_fields = ['protocol', 'tenant', 'decided_by']
+    readonly_fields = ['id', 'created_at', 'updated_at']
     inlines       = [ConditionInline, LetterInline]
+
+    def short_id(self, obj):
+        return str(obj.id)[:8] + '…'
+    short_id.short_description = 'ID'
 
     def condition_count(self, obj):
         return obj.conditions.count()
@@ -37,12 +44,17 @@ class DecisionAdmin(admin.ModelAdmin):
 
 @admin.register(Condition)
 class ConditionAdmin(admin.ModelAdmin):
-    list_display = ['id', 'decision', 'is_completed', 'created_at']
-    list_filter  = ['is_completed']
+    list_display = ['short_id', 'decision', 'is_completed', 'created_at', 'is_deleted']
+    list_filter  = ['is_completed', 'is_deleted']
     search_fields = ['description']
+
+    def short_id(self, obj):
+        return str(obj.id)[:8] + '…'
+    short_id.short_description = 'ID'
 
 
 @admin.register(Letter)
 class LetterAdmin(admin.ModelAdmin):
-    list_display = ['title', 'decision', 'created_at']
+    list_display = ['title', 'decision', 'created_at', 'is_deleted']
+    list_filter  = ['is_deleted']
     search_fields = ['title', 'content']

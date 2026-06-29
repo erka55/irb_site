@@ -1,9 +1,10 @@
 from django.db import models
 
+from apps.core.models import BaseModel
 from .decision import Decision
 
 
-class Letter(models.Model):
+class Letter(BaseModel):
     """
     Official IRB decision letter.
     """
@@ -18,9 +19,8 @@ class Letter(models.Model):
 
     content = models.TextField()
 
-    created_at = models.DateTimeField(auto_now_add=True)
-
     class Meta:
+        db_table = "decision_letters"
         ordering = ["-created_at"]
 
     def __str__(self):
