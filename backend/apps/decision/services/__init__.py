@@ -1,3 +1,3 @@
-from .workflow_service import DecisionWorkflowService
+from .decision_service import DecisionService
 
-__all__ = ["DecisionWorkflowService"]
+__all__ = ["DecisionService"]

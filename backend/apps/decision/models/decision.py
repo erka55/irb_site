@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.core.exceptions import ValidationError
 
 from apps.core.models import BaseModel
 from apps.tenants.models import Tenant
@@ -8,16 +9,15 @@ from apps.protocols.models import Protocol
 
 class Decision(BaseModel):
     """
-    Core IRB decision record.
+    Official IRB decision record (requirements FR-007, workflow-v1.0 §3.6).
+    Immutable once published — see BR-005 / BR-007.
     """
 
-    class Status(models.TextChoices):
-        DRAFT       = "draft",       "Draft"
-        PENDING     = "pending",     "Pending"
-        APPROVED    = "approved",    "Approved"
-        CONDITIONAL = "conditional", "Conditional Approval"
-        REJECTED    = "rejected",    "Rejected"
-        WITHDRAWN   = "withdrawn",   "Withdrawn"
+    class DecisionType(models.TextChoices):
+        APPROVED             = "approved",            "Approved"
+        CONDITIONAL_APPROVAL = "conditional_approval", "Conditional Approval"
+        REVISION_REQUIRED    = "revision_required",    "Revision Required"
+        REJECTED             = "rejected",              "Rejected"
 
     tenant = models.ForeignKey(
         Tenant,
@@ -35,20 +35,36 @@ class Decision(BaseModel):
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name="decisions_made",
-        null=True,
-        blank=True,
-        help_text="Шийдвэр гаргасан хэрэглэгч (Chair/PC гишүүн)",
     )
 
-    status = models.CharField(
-        max_length=20,
-        choices=Status.choices,
-        default=Status.DRAFT,
+    decision_type = models.CharField(
+        max_length=30,
+        choices=DecisionType.choices,
     )
+
+    quorum_met = models.BooleanField()
+
+    is_published = models.BooleanField(default=False)
+    published_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "decisions"
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"Decision #{self.pk} ({self.status})"
+        return f"Decision #{self.pk} ({self.decision_type})"
+
+    def clean(self):
+        if not self.quorum_met:
+            raise ValidationError(
+                "Decision cannot be issued without quorum (BR-004)."
+            )
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            original = Decision.objects.filter(pk=self.pk).first()
+            if original and original.is_published:
+                raise ValueError("Published decisions are immutable.")
+
+        self.full_clean()
+        super().save(*args, **kwargs)
