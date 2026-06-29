@@ -1,11 +1,10 @@
 """
 Decision domain services.
 """
-
 from django.db import transaction
 
-from .workflow import validate_transition
-from .rules import (
+from ..workflow import validate_transition
+from ..rules import (
     validate_review_completed,
     validate_committee_completed,
     validate_quorum_met,
@@ -27,13 +26,7 @@ class DecisionWorkflowService:
         committee_completed: bool,
         quorum_met: bool,
     ) -> None:
-        """
-        Validate workflow state transition together with
-        business rules.
-        """
-
         validate_transition(current_state, target_state)
-
         validate_review_completed(review_completed)
         validate_committee_completed(committee_completed)
         validate_quorum_met(quorum_met)
@@ -48,10 +41,6 @@ class DecisionWorkflowService:
         committee_completed: bool,
         quorum_met: bool,
     ):
-        """
-        Execute a validated workflow transition.
-        """
-
         DecisionWorkflowService.validate_transition(
             current_state=decision.status,
             target_state=target_state,
@@ -59,8 +48,6 @@ class DecisionWorkflowService:
             committee_completed=committee_completed,
             quorum_met=quorum_met,
         )
-
         decision.status = target_state
-        decision.save(update_fields=["status"])
-
+        decision.save(update_fields=["status", "updated_at"])
         return decision
