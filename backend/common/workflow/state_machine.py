@@ -4,13 +4,10 @@ from enum import StrEnum
 class ProtocolStatus(StrEnum):
     DRAFT = "draft"
     SUBMITTED = "submitted"
-    PRE_SCREENING = "pre_screening"
     UNDER_REVIEW = "under_review"
-    COMMITTEE_REVIEW = "committee_review"
-    REVISION_REQUIRED = "revision_required"
     APPROVED = "approved"
     REJECTED = "rejected"
-    WITHDRAWN = "withdrawn"
+    REVISIONS_REQUIRED = "revisions_required"
 
 
 ALLOWED_TRANSITIONS = {
@@ -19,36 +16,20 @@ ALLOWED_TRANSITIONS = {
     },
 
     ProtocolStatus.SUBMITTED: {
-        ProtocolStatus.PRE_SCREENING,
-        ProtocolStatus.WITHDRAWN,
-    },
-
-    ProtocolStatus.PRE_SCREENING: {
         ProtocolStatus.UNDER_REVIEW,
-        ProtocolStatus.REVISION_REQUIRED,
-        ProtocolStatus.REJECTED,
     },
 
     ProtocolStatus.UNDER_REVIEW: {
-        ProtocolStatus.COMMITTEE_REVIEW,
-        ProtocolStatus.REVISION_REQUIRED,
-        ProtocolStatus.REJECTED,
-    },
-
-    ProtocolStatus.COMMITTEE_REVIEW: {
         ProtocolStatus.APPROVED,
         ProtocolStatus.REJECTED,
-        ProtocolStatus.REVISION_REQUIRED,
+        ProtocolStatus.REVISIONS_REQUIRED,
     },
 
-    ProtocolStatus.REVISION_REQUIRED: {
+    ProtocolStatus.REVISIONS_REQUIRED: {
         ProtocolStatus.SUBMITTED,
-        ProtocolStatus.WITHDRAWN,
     },
 
     ProtocolStatus.APPROVED: set(),
 
     ProtocolStatus.REJECTED: set(),
-
-    ProtocolStatus.WITHDRAWN: set(),
 }
