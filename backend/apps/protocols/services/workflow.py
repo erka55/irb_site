@@ -2,44 +2,13 @@ from apps.protocols.services.versioning import (
     ProtocolVersionService,
 )
 
+from common.workflow.engine import WorkflowEngine
+
 from apps.protocols.enums import ProtocolStatus
 from apps.protocols.models import ProtocolStatusHistory
 
-ALLOWED_TRANSITIONS = {
-    ProtocolStatus.DRAFT: [
-        ProtocolStatus.SUBMITTED,
-    ],
-    ProtocolStatus.SUBMITTED: [
-        ProtocolStatus.UNDER_REVIEW,
-    ],
-    ProtocolStatus.UNDER_REVIEW: [
-        ProtocolStatus.APPROVED,
-        ProtocolStatus.REJECTED,
-        ProtocolStatus.REVISIONS_REQUIRED,
-    ],
-    ProtocolStatus.REVISIONS_REQUIRED: [
-        ProtocolStatus.SUBMITTED,
-    ],
-}
-
-
-class InvalidTransitionError(Exception):
-    pass
-
 
 class ProtocolWorkflowService:
-
-    @staticmethod
-    def can_transition(
-        current_status,
-        target_status,
-    ):
-        allowed = ALLOWED_TRANSITIONS.get(
-            current_status,
-            [],
-        )
-
-        return target_status in allowed
 
     @staticmethod
     def change_status(
@@ -48,15 +17,10 @@ class ProtocolWorkflowService:
         changed_by,
         reason="",
     ):
-        if not ProtocolWorkflowService.can_transition(
-            protocol.status,
-            target_status,
-        ):
-            raise InvalidTransitionError(
-                f"Cannot transition from "
-                f"{protocol.status} to "
-                f"{target_status}"
-            )
+        WorkflowEngine.transition(
+            current=protocol.status,
+            target=target_status,
+        )
 
         previous_status = protocol.status
 

@@ -1,13 +1,19 @@
-from .rules import validate_transition
+from .state_machine import ALLOWED_TRANSITIONS
+
+
+class InvalidTransitionError(Exception):
+    pass
 
 
 class WorkflowEngine:
 
-    def transition(
-        self,
-        current,
-        target,
-    ):
-        validate_transition(current, target)
+    @staticmethod
+    def transition(current, target):
+        allowed = ALLOWED_TRANSITIONS.get(current, set())
+
+        if target not in allowed:
+            raise InvalidTransitionError(
+                f"Cannot transition from {current} to {target}"
+            )
 
         return target

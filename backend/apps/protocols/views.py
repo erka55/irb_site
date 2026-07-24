@@ -5,11 +5,8 @@ from rest_framework.response import Response
 
 from apps.protocols.models import Protocol
 from apps.protocols.serializers import ProtocolSerializer
-from apps.protocols.services.workflow import (
-    InvalidTransitionError,
-    ProtocolWorkflowService,
-)
-
+from apps.protocols.services.workflow import ProtocolWorkflowService
+from common.workflow.engine import InvalidTransitionError
 
 class ProtocolViewSet(viewsets.ModelViewSet):
 
