@@ -1,11 +1,16 @@
-from apps.protocols.services.versioning import (
-    ProtocolVersionService,
-)
-
-from common.workflow.engine import WorkflowEngine
-
 from apps.protocols.enums import ProtocolStatus
 from apps.protocols.models import ProtocolStatusHistory
+from apps.protocols.services.versioning import ProtocolVersionService
+
+from common.workflow.engine import WorkflowEngine
+from common.events.memory import InMemoryEventPublisher
+from common.events.protocol import (
+    ProtocolSubmitted,
+    ProtocolApproved,
+    ProtocolRejected,
+    ProtocolRevisionsRequested,
+)
+from common.events.types import EventTypes
 
 
 class ProtocolWorkflowService:
@@ -39,6 +44,46 @@ class ProtocolWorkflowService:
             protocol=protocol,
             user=changed_by,
         )
+
+        publisher = InMemoryEventPublisher()
+
+        event_map = {
+            ProtocolStatus.SUBMITTED: (
+                ProtocolSubmitted,
+                EventTypes.PROTOCOL_SUBMITTED,
+            ),
+            ProtocolStatus.APPROVED: (
+                ProtocolApproved,
+                EventTypes.PROTOCOL_APPROVED,
+            ),
+            ProtocolStatus.REJECTED: (
+                ProtocolRejected,
+                EventTypes.PROTOCOL_REJECTED,
+            ),
+            ProtocolStatus.REVISIONS_REQUIRED: (
+                ProtocolRevisionsRequested,
+                EventTypes.PROTOCOL_REVISIONS_REQUESTED,
+            ),
+        }
+
+        event_class, event_type = event_map.get(
+            target_status,
+            (None, None),
+        )
+
+        if event_class:
+            publisher.publish(
+                event_class(
+                    event_type=event_type,
+                    tenant_id=str(protocol.tenant.id),
+                    actor_id=str(changed_by.id),
+                    payload={
+                        "protocol_id": str(protocol.id),
+                        "from_status": previous_status,
+                        "to_status": target_status,
+                    },
+                )
+            )
 
         return protocol
 
