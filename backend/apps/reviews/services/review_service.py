@@ -1,3 +1,5 @@
+from common.events.memory import InMemoryEventPublisher
+from common.events.review import ReviewCompleted
 from django.utils import timezone
 
 from apps.reviews.models import (
@@ -47,10 +49,19 @@ class ReviewService:
         review.status = ReviewStatus.SUBMITTED
         review.submitted_at = timezone.now()
 
-        # TODO:
-        # publish ReviewSubmitted event
-
         review.save()
+
+        publisher = InMemoryEventPublisher()
+
+        publisher.publish(
+            ReviewCompleted(
+                tenant_id=None,
+                actor_id=str(review.reviewer_id),
+                protocol_id=review.protocol_id,
+                review_id=review.id,
+                reviewer_id=review.reviewer_id,
+            )
+        )
 
         return review
 

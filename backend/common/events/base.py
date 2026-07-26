@@ -11,7 +11,7 @@ class BaseEvent:
     """
 
     event_type: str
-    tenant_id: str
+    tenant_id: str | None = None
     actor_id: str | None = None
     payload: dict[str, Any] = field(default_factory=dict)
 
