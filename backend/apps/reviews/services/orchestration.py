@@ -1,9 +1,10 @@
-from common.events.base import BaseEvent
+from common.events.memory import InMemoryEventPublisher
+from common.events.review import ReviewsCompleted
 
 from apps.reviews.services.aggregation_service import (
     ReviewAggregationService,
 )
-
+from common.events.base import BaseEvent
 
 class ReviewOrchestrationService:
 
@@ -18,6 +19,13 @@ class ReviewOrchestrationService:
             )
         )
 
+        if not quorum:
+            print(
+                "[ORCHESTRATION] "
+                "Waiting for remaining reviews."
+            )
+            return
+
         recommendation = (
             ReviewAggregationService.generate_recommendation(
                 protocol_id
@@ -25,11 +33,16 @@ class ReviewOrchestrationService:
         )
 
         print(
-            f"[ORCHESTRATION] "
-            f"quorum={quorum}, "
-            f"recommendation={recommendation}"
+            "[ORCHESTRATION] "
+            f"Recommendation={recommendation}"
         )
 
-        # Sprint 5 next step:
-        # if quorum:
-        #     publish ReviewsCompleted
+        publisher = InMemoryEventPublisher()
+
+        publisher.publish(
+            ReviewsCompleted(
+                tenant_id=event.tenant_id,
+                actor_id=event.actor_id,
+                protocol_id=protocol_id,
+            )
+        )
