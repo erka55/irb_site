@@ -2,7 +2,7 @@ from collections import defaultdict
 from collections.abc import Callable
 
 from .base import BaseEvent
-
+from common.events.types import EventTypes
 
 class EventHandlerRegistry:
     """

@@ -1,6 +1,6 @@
 from .base import BaseEvent
-
-
+from common.events.types import EventTypes
+  
 class ReviewCompleted(BaseEvent):
     """
     Published when an individual review is submitted.
@@ -15,7 +15,7 @@ class ReviewCompleted(BaseEvent):
         reviewer_id,
     ):
         super().__init__(
-            event_type="review.completed",
+            event_type=EventTypes.REVIEW_COMPLETED,
             tenant_id=str(tenant_id),
             actor_id=str(actor_id) if actor_id else None,
             payload={
@@ -39,7 +39,7 @@ class ReviewsCompleted(BaseEvent):
         protocol_id,
     ):
         super().__init__(
-            event_type="reviews.completed",
+            event_type=EventTypes.REVIEWS_COMPLETED,
             tenant_id=str(tenant_id),
             actor_id=str(actor_id) if actor_id else None,
             payload={

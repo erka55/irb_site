@@ -1,5 +1,5 @@
 from .base import BaseEvent
-
+from common.events.types import EventTypes
 
 class DecisionCreated(BaseEvent):
     """
@@ -14,7 +14,7 @@ class DecisionCreated(BaseEvent):
         decision_id,
     ):
         super().__init__(
-            event_type="decision.created",
+            event_type=EventTypes.DECISION_CREATED,
             tenant_id=str(tenant_id),
             actor_id=str(actor_id) if actor_id else None,
             payload={

@@ -7,6 +7,9 @@ class EventTypes:
 
     REVIEW_ASSIGNED = "review.assigned"
     REVIEW_SUBMITTED = "review.submitted"
+    REVIEW_COMPLETED = "review.completed"
+    REVIEWS_COMPLETED = "reviews.completed"
 
     DECISION_CREATED = "decision.created"
     DECISION_ISSUED = "decision.issued"
+    DECISION_PUBLISHED = "decision.published"

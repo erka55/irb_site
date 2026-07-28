@@ -5,6 +5,7 @@ from apps.reviews.services.orchestration import (
 from apps.decision.services.orchestration import (
     DecisionOrchestrationService,
 )
+from common.events.types import EventTypes
 
 
 def register_event_handlers() -> None:
@@ -13,11 +14,11 @@ def register_event_handlers() -> None:
     """
 
     registry.register(
-        "review.completed",
+        EventTypes.REVIEW_COMPLETED,
         ReviewOrchestrationService.handle_review_completed,
     )
 
     registry.register(
-        "reviews.completed",
+        EventTypes.REVIEWS_COMPLETED,
         DecisionOrchestrationService.handle_reviews_completed,
     )
