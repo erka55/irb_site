@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'apps.reviews',
     'apps.decision',
+    'apps.notifications',
 ]
 
 MIDDLEWARE = [
