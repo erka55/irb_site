@@ -5,10 +5,14 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.audit.models import AuditLog
-from ..models.decision import Decision
+from apps.core.models import RoleChoices
 from apps.protocols.models import Protocol
 from apps.users.models import Membership
-from apps.core.models import RoleChoices
+from common.events.decision import DecisionPublished
+from common.events.memory import InMemoryEventPublisher
+
+from ..models.decision import Decision
+
 
 class DecisionService:
     """
@@ -36,6 +40,18 @@ class DecisionService:
                 "protocol_id": str(decision.protocol_id),
             },
         )
+
+        publisher = InMemoryEventPublisher()
+
+        publisher.publish(
+            DecisionPublished(
+                tenant_id=decision.tenant_id,
+                actor_id=str(actor.id) if actor else None,
+                protocol_id=decision.protocol_id,
+                decision_id=decision.id,
+            )
+        )
+
         return decision
 
     @staticmethod

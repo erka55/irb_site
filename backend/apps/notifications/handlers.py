@@ -1,8 +1,9 @@
+from apps.decision.models import Decision
+
 from .enums import (
     NotificationChannel,
     NotificationType,
 )
-
 from .services import NotificationService
 
 
@@ -13,42 +14,46 @@ class NotificationHandler:
 
     @staticmethod
     def handle_protocol_submitted(event):
-        NotificationService.create_notification(
-            tenant=event.tenant,
-            recipient=event.recipient,
-            type=NotificationType.PROTOCOL_SUBMITTED,
-            channel=NotificationChannel.IN_APP,
-            title="Protocol Submitted",
-            message=f"Protocol '{event.protocol_title}' has been submitted.",
-            payload={
-                "protocol_id": str(event.protocol_id),
-            },
-        )
+        pass
 
     @staticmethod
     def handle_review_assigned(event):
-        NotificationService.create_notification(
-            tenant=event.tenant,
-            recipient=event.reviewer,
-            type=NotificationType.REVIEW_ASSIGNED,
-            channel=NotificationChannel.IN_APP,
-            title="Review Assigned",
-            message=f"You have been assigned to review '{event.protocol_title}'.",
-            payload={
-                "protocol_id": str(event.protocol_id),
-            },
-        )
+        pass
 
     @staticmethod
-    def handle_decision_issued(event):
+    def handle_reviews_completed(event):
+        pass
+
+    @staticmethod
+    def handle_decision_published(event):
+
+        decision = (
+            Decision.objects
+            .select_related(
+                "tenant",
+                "protocol__principal_investigator",
+            )
+            .filter(
+                id=event.payload["decision_id"],
+            )
+            .first()
+        )
+
+        if decision is None:
+            return
+
         NotificationService.create_notification(
-            tenant=event.tenant,
-            recipient=event.recipient,
+            tenant=decision.tenant,
+            recipient=decision.protocol.principal_investigator,
             type=NotificationType.DECISION_ISSUED,
             channel=NotificationChannel.IN_APP,
-            title="Decision Issued",
-            message=f"A decision has been issued for '{event.protocol_title}'.",
+            title="Decision Published",
+            message=(
+                f"A decision has been published for "
+                f"'{decision.protocol.title}'."
+            ),
             payload={
-                "protocol_id": str(event.protocol_id),
+                "decision_id": str(decision.id),
+                "protocol_id": str(decision.protocol.id),
             },
         )
