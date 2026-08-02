@@ -7,11 +7,22 @@ class MeetingStatus(models.TextChoices):
     COMPLETED = "completed", "Completed"
     CANCELLED = "cancelled", "Cancelled"
 
-
 class MeetingType(models.TextChoices):
     REGULAR = "regular", "Regular"
     EXPEDITED = "expedited", "Expedited"
     EMERGENCY = "emergency", "Emergency"
+
+class ParticipantRole(models.TextChoices):
+    CHAIR = "chair", "Chair"
+    REVIEWER = "reviewer", "Reviewer"
+    SECRETARY = "secretary", "Secretary"
+    GUEST = "guest", "Guest"
+
+class AttendanceStatus(models.TextChoices):
+    INVITED = "invited", "Invited"
+    PRESENT = "present", "Present"
+    ABSENT = "absent", "Absent"
+    EXCUSED = "excused", "Excused"
 
 class Meeting(BaseModel):
     tenant = models.ForeignKey(
@@ -58,3 +69,40 @@ class Meeting(BaseModel):
 
     def __str__(self):
         return f"{self.title} ({self.meeting_date.date()})"
+
+class MeetingParticipant(BaseModel):
+    meeting = models.ForeignKey(
+        "meetings.Meeting",
+        on_delete=models.CASCADE,
+        related_name="participants",
+    )
+
+    user = models.ForeignKey(
+        "users.User",
+        on_delete=models.PROTECT,
+        related_name="meeting_participations",
+    )
+
+    role = models.CharField(
+        max_length=20,
+        choices=ParticipantRole.choices,
+        default=ParticipantRole.REVIEWER,
+    )
+
+    attendance_status = models.CharField(
+        max_length=20,
+        choices=AttendanceStatus.choices,
+        default=AttendanceStatus.INVITED,
+    )
+
+    class Meta:
+        ordering = ["meeting", "user"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["meeting", "user"],
+                name="unique_meeting_participant",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.user} - {self.meeting}"
