@@ -106,3 +106,46 @@ class MeetingParticipant(BaseModel):
 
     def __str__(self):
         return f"{self.user} - {self.meeting}"
+
+class MeetingAgenda(BaseModel):
+    meeting = models.ForeignKey(
+        "meetings.Meeting",
+        on_delete=models.CASCADE,
+        related_name="agenda_items",
+    )
+
+    protocol = models.ForeignKey(
+        "protocols.Protocol",
+        on_delete=models.CASCADE,
+        related_name="meeting_agendas",
+    )
+
+    order = models.PositiveIntegerField()
+
+    presenter = models.ForeignKey(
+        "users.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="presented_agenda_items",
+    )
+
+    notes = models.TextField(
+        blank=True,
+    )
+
+    class Meta:
+        ordering = ["meeting", "order"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["meeting", "order"],
+                name="unique_meeting_agenda_order",
+            ),
+            models.UniqueConstraint(
+                fields=["meeting", "protocol"],
+                name="unique_meeting_protocol",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.meeting} - Item {self.order}"

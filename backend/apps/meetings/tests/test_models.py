@@ -9,6 +9,12 @@ from apps.meetings.models import (
 from apps.tenants.models import Tenant
 from apps.users.models import User
 
+from apps.meetings.models import MeetingAgenda
+from apps.protocols.models import (
+    Protocol,
+    RiskLevel,
+)
+
 
 class MeetingModelTest(TestCase):
     def test_create_meeting(self):
@@ -66,3 +72,42 @@ class MeetingParticipantModelTest(TestCase):
         self.assertEqual(participant.role, ParticipantRole.REVIEWER)
         self.assertEqual(participant.meeting, meeting)
         self.assertEqual(participant.user, reviewer)
+
+class MeetingAgendaModelTest(TestCase):
+
+    def test_create_agenda_item(self):
+        tenant = Tenant.objects.create(
+            code="must",
+            name="MUST",
+        )
+
+        chair = User.objects.create_user(
+            email="chair@example.com",
+            password="password123",
+        )
+
+        meeting = Meeting.objects.create(
+            tenant=tenant,
+            title="IRB Meeting",
+            meeting_date=timezone.now(),
+            chair=chair,
+        )
+
+        protocol = Protocol.objects.create(
+            tenant=tenant,
+            title="Cancer Study",
+            protocol_number="IRB-001",
+            principal_investigator=chair,
+            risk_level=RiskLevel.LOW,
+        )
+
+        agenda = MeetingAgenda.objects.create(
+            meeting=meeting,
+            protocol=protocol,
+            order=1,
+            presenter=chair,
+        )
+
+        self.assertEqual(agenda.order, 1)
+        self.assertEqual(agenda.meeting, meeting)
+        self.assertEqual(agenda.protocol, protocol)
