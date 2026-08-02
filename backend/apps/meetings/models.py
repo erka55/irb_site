@@ -24,6 +24,13 @@ class AttendanceStatus(models.TextChoices):
     ABSENT = "absent", "Absent"
     EXCUSED = "excused", "Excused"
 
+class VoteChoice(models.TextChoices):
+    APPROVE = "approve", "Approve"
+    APPROVE_WITH_CHANGES = "approve_with_changes", "Approve with Changes"
+    REVISIONS_REQUIRED = "revisions_required", "Revisions Required"
+    REJECT = "reject", "Reject"
+    ABSTAIN = "abstain", "Abstain"
+
 class Meeting(BaseModel):
     tenant = models.ForeignKey(
         "tenants.Tenant",
@@ -149,3 +156,37 @@ class MeetingAgenda(BaseModel):
 
     def __str__(self):
         return f"{self.meeting} - Item {self.order}"
+
+class MeetingVote(BaseModel):
+    agenda = models.ForeignKey(
+        "meetings.MeetingAgenda",
+        on_delete=models.CASCADE,
+        related_name="votes",
+    )
+
+    participant = models.ForeignKey(
+        "meetings.MeetingParticipant",
+        on_delete=models.CASCADE,
+        related_name="votes",
+    )
+
+    vote = models.CharField(
+        max_length=30,
+        choices=VoteChoice.choices,
+    )
+
+    comment = models.TextField(
+        blank=True,
+    )
+
+    class Meta:
+        ordering = ["agenda", "participant"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["agenda", "participant"],
+                name="unique_vote_per_participant",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.participant} → {self.vote}"
