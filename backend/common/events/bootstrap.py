@@ -1,6 +1,7 @@
 from apps.reviews.services.orchestration import ReviewOrchestrationService
 from apps.decision.services.orchestration import DecisionOrchestrationService
 from apps.notifications.handlers import NotificationHandler
+from apps.meetings.handlers import MeetingHandler
 
 from .registry import registry
 from .types import EventTypes
@@ -35,8 +36,21 @@ def register_audit_handlers():
     pass
 
 
+def register_meeting_handlers():
+    registry.register(
+        EventTypes.MEETING_COMPLETED,
+        MeetingHandler.handle_meeting_completed,
+    )
+
+    registry.register(
+        EventTypes.MEETING_CANCELLED,
+        MeetingHandler.handle_meeting_cancelled,
+    )
+
+
 def register_event_handlers():
     register_review_handlers()
     register_decision_handlers()
     register_notification_handlers()
     register_audit_handlers()
+    register_meeting_handlers()
