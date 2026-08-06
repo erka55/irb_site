@@ -2,11 +2,11 @@ from django.utils import timezone
 
 from apps.meetings.models import Meeting, MeetingStatus
 
-from common.events.publisher import publisher
 from common.events.meeting import (
     MeetingCompleted,
     MeetingCancelled,
 )
+from common.events.memory import InMemoryEventPublisher
 
 class MeetingService:
 
@@ -28,12 +28,13 @@ class MeetingService:
         meeting.status = MeetingStatus.COMPLETED
         meeting.save(update_fields=["status", "updated_at"])
 
+        publisher = InMemoryEventPublisher()
+
         publisher.publish(
             MeetingCompleted(
                 tenant_id=meeting.tenant_id,
                 actor_id=None,
                 meeting_id=meeting.id,
-                protocol_id=meeting.protocol_id,
             )
         )
 
@@ -47,12 +48,13 @@ class MeetingService:
         meeting.status = MeetingStatus.CANCELLED
         meeting.save(update_fields=["status", "updated_at"])
 
+        publisher = InMemoryEventPublisher()
+
         publisher.publish(
             MeetingCancelled(
                 tenant_id=meeting.tenant_id,
                 actor_id=None,
                 meeting_id=meeting.id,
-                protocol_id=meeting.protocol_id,
             )
         )
 

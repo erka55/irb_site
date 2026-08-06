@@ -1,6 +1,3 @@
-"""
-Decision domain services.
-"""
 from django.db import transaction
 from django.utils import timezone
 
@@ -56,7 +53,11 @@ class DecisionService:
 
     @staticmethod
     @transaction.atomic
-    def create_draft(*, protocol_id) -> Decision:
+    def create_draft(
+        *,
+        protocol_id,
+        decision_type=Decision.DecisionType.CONDITIONAL_APPROVAL,
+    ) -> Decision:
         """
         Create an unpublished draft decision after
         review quorum has been reached.
@@ -81,7 +82,7 @@ class DecisionService:
             tenant=protocol.tenant,
             protocol=protocol,
             decided_by=chair,
-            decision_type=Decision.DecisionType.CONDITIONAL_APPROVAL,
+            decision_type=decision_type,
             quorum_met=True,
             is_published=False,
         )
@@ -94,6 +95,7 @@ class DecisionService:
             entity_id=decision.id,
             payload={
                 "protocol_id": str(protocol.id),
+                "decision_type": decision.decision_type,
             },
         )
 

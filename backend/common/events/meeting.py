@@ -35,7 +35,6 @@ class MeetingCompleted(BaseEvent):
         tenant_id,
         actor_id,
         meeting_id,
-        protocol_id,
     ):
         super().__init__(
             event_type=EventTypes.MEETING_COMPLETED,
@@ -43,7 +42,6 @@ class MeetingCompleted(BaseEvent):
             actor_id=str(actor_id) if actor_id else None,
             payload={
                 "meeting_id": str(meeting_id),
-                "protocol_id": str(protocol_id),
             },
         )
 
@@ -58,7 +56,6 @@ class MeetingCancelled(BaseEvent):
         tenant_id,
         actor_id,
         meeting_id,
-        protocol_id,
     ):
         super().__init__(
             event_type=EventTypes.MEETING_CANCELLED,
@@ -66,6 +63,5 @@ class MeetingCancelled(BaseEvent):
             actor_id=str(actor_id) if actor_id else None,
             payload={
                 "meeting_id": str(meeting_id),
-                "protocol_id": str(protocol_id),
             },
         )
