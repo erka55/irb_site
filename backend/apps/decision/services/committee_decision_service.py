@@ -6,6 +6,10 @@ from apps.meetings.models import (
     VoteChoice,
 )
 from apps.decision.services.decision_service import DecisionService
+from apps.decision.services.publication_service import (
+    DecisionPublicationService,
+)
+
 
 class CommitteeDecisionService:
     """
@@ -27,6 +31,9 @@ class CommitteeDecisionService:
             protocol_id=agenda.protocol.id,
             decision_type=decision_type,
         )
+
+        # Generate the official decision letter.
+        DecisionPublicationService.generate_letter(decision)
 
         return decision
 

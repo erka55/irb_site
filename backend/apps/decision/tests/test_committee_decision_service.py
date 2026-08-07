@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
 
@@ -78,3 +78,50 @@ class CommitteeDecisionServiceTest(SimpleTestCase):
             CommitteeDecisionService.determine_decision_type(
                 agenda
             )
+
+    @patch(
+        "apps.decision.services.committee_decision_service."
+        "DecisionPublicationService.generate_letter"
+    )
+    @patch(
+        "apps.decision.services.committee_decision_service."
+        "DecisionService.create_draft"
+    )
+    @patch(
+        "apps.decision.services.committee_decision_service."
+        "Decision.objects.filter"
+    )
+    def test_create_from_agenda_generates_letter(
+        self,
+        mock_decision_filter,
+        mock_create_draft,
+        mock_generate_letter,
+    ):
+        agenda = self._agenda()
+
+        agenda.votes.exists.return_value = True
+        agenda.votes.all.return_value = [
+            MagicMock(vote=VoteChoice.APPROVE),
+            MagicMock(vote=VoteChoice.APPROVE),
+            MagicMock(vote=VoteChoice.REJECT),
+        ]
+
+        mock_decision_filter.return_value.exists.return_value = False
+
+        decision = MagicMock()
+        mock_create_draft.return_value = decision
+
+        result = CommitteeDecisionService.create_from_agenda(
+            agenda
+        )
+
+        self.assertEqual(result, decision)
+
+        mock_create_draft.assert_called_once_with(
+            protocol_id=agenda.protocol.id,
+            decision_type=Decision.DecisionType.APPROVED,
+        )
+
+        mock_generate_letter.assert_called_once_with(
+            decision
+        )

@@ -19,5 +19,7 @@ class EventTypes:
 
     # Decision Events
     DECISION_CREATED = "decision.created"
+    DECISION_LETTER_GENERATED = "decision.letter.generated"
     DECISION_ISSUED = "decision.issued"
     DECISION_PUBLISHED = "decision.published"
+    DECISION_LETTER_ISSUED = "decision.letter.issued"
