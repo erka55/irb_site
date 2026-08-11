@@ -81,7 +81,7 @@ class DecisionPublicationService:
         if not letter.letter_number:
             year = timezone.now().year
             letter.letter_number = (
-                f"IRB-{year}-{letter.pk:05d}"
+                f"IRB-{year}-{str(letter.pk)}"
             )
 
         letter.publication_status = PublicationStatus.PUBLISHED

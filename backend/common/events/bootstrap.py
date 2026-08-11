@@ -2,6 +2,7 @@ from apps.reviews.services.orchestration import ReviewOrchestrationService
 from apps.decision.services.orchestration import DecisionOrchestrationService
 from apps.notifications.handlers import NotificationHandler
 from apps.meetings.handlers import MeetingHandler
+from apps.monitoring.handlers import MonitoringHandler
 
 from .registry import registry
 from .types import EventTypes
@@ -27,6 +28,11 @@ def register_notification_handlers():
         NotificationHandler.handle_decision_published,
     )
 
+def register_monitoring_handlers():
+    registry.register(
+        EventTypes.DECISION_PUBLISHED,
+        MonitoringHandler.handle_decision_published,
+    )
 
 def register_audit_handlers():
     """
@@ -52,5 +58,6 @@ def register_event_handlers():
     register_review_handlers()
     register_decision_handlers()
     register_notification_handlers()
+    register_monitoring_handlers()
     register_audit_handlers()
     register_meeting_handlers()

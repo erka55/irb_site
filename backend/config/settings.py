@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'apps.decision',
     'apps.notifications',
     'apps.meetings',
+    'apps.monitoring',
 ]
 
 MIDDLEWARE = [

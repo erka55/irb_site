@@ -23,3 +23,7 @@ class EventTypes:
     DECISION_ISSUED = "decision.issued"
     DECISION_PUBLISHED = "decision.published"
     DECISION_LETTER_ISSUED = "decision.letter.issued"
+
+    # Monitoring Events
+    PROGRESS_REPORT_SUBMITTED = "progress_report.submitted"
+    INCIDENT_REPORT_SUBMITTED = "incident_report.submitted"    
