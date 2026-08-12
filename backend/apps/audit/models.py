@@ -1,12 +1,11 @@
-import uuid
-
 from django.conf import settings
 from django.db import models
 
-from apps.core.models import BaseModel
+from apps.core.models import AuditBaseModel
 from apps.tenants.models import Tenant
 
-class AuditLog(BaseModel):
+
+class AuditLog(AuditBaseModel):
 
     tenant = models.ForeignKey(
         Tenant,
@@ -20,6 +19,17 @@ class AuditLog(BaseModel):
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name="audit_logs",
+        null=True,
+        blank=True,
+    )
+
+    event_id = models.UUIDField(
+        unique=True,
+        null=True,
+        blank=True,
+    )
+
+    occurred_at = models.DateTimeField(
         null=True,
         blank=True,
     )
@@ -52,6 +62,7 @@ class AuditLog(BaseModel):
         db_table = "audit_logs"
 
         ordering = [
+            "-occurred_at",
             "-created_at",
         ]
 

@@ -1,7 +1,7 @@
 from django.db import transaction
 from django.utils import timezone
 
-from apps.audit.models import AuditLog
+from apps.audit.services import log_event
 from apps.core.models import RoleChoices
 from apps.protocols.models import Protocol
 from apps.users.models import Membership
@@ -26,7 +26,7 @@ class DecisionService:
         decision.published_at = timezone.now()
         decision.save()
 
-        AuditLog.objects.create(
+        log_event(
             tenant=decision.tenant,
             actor=actor,
             action="decision.publish",
@@ -87,7 +87,7 @@ class DecisionService:
             is_published=False,
         )
 
-        AuditLog.objects.create(
+        log_event(
             tenant=protocol.tenant,
             actor=chair,
             action="decision.create_draft",

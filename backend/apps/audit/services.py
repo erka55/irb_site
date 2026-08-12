@@ -1,5 +1,6 @@
 from .models import AuditLog
 
+
 def log_event(
     *,
     action,
@@ -8,6 +9,8 @@ def log_event(
     actor=None,
     tenant=None,
     payload=None,
+    event_id=None,
+    occurred_at=None,
 ):
     return AuditLog.objects.create(
         action=action,
@@ -16,4 +19,6 @@ def log_event(
         actor=actor,
         tenant=tenant,
         payload=payload or {},
+        event_id=event_id,
+        occurred_at=occurred_at,
     )
