@@ -26,6 +26,7 @@ class DecisionService:
         decision.published_at = timezone.now()
         decision.save()
 
+        # Business-action audit record.
         log_event(
             tenant=decision.tenant,
             actor=actor,
@@ -87,6 +88,7 @@ class DecisionService:
             is_published=False,
         )
 
+        # Business-action audit record.
         log_event(
             tenant=protocol.tenant,
             actor=chair,
