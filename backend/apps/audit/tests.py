@@ -6,6 +6,7 @@ from django.test import TestCase
 from apps.audit.handlers import AuditEventHandler
 from apps.audit.models import AuditLog
 from apps.audit.services import log_event
+from apps.audit.queries import AuditLogQueryService
 from apps.tenants.models import Tenant
 from apps.users.models import User
 from common.events.protocol import ProtocolSubmitted
@@ -301,4 +302,185 @@ class DjangoEventStoreRepositoryTests(TestCase):
         self.assertEqual(
             log.occurred_at,
             event.occurred_at,
+        )
+
+    def test_append_rejects_duplicate_event_id(self):
+        protocol_id = uuid4()
+
+        event = ProtocolSubmitted(
+            tenant_id=self.tenant.id,
+            actor_id=self.user.id,
+            protocol_id=protocol_id,
+        )
+
+        repository = DjangoEventStoreRepository()
+
+        repository.append(event)
+
+        with self.assertRaises(Exception):
+            repository.append(event)
+        
+
+class AuditLogQueryServiceTests(TestCase):
+
+    def setUp(self):
+        self.tenant_a = Tenant.objects.create(
+            code="tenant-a",
+            name="Tenant A",
+        )
+
+        self.tenant_b = Tenant.objects.create(
+            code="tenant-b",
+            name="Tenant B",
+        )
+
+        self.user_a = User.objects.create_user(
+            email="user-a@test.com",
+            password="test-password",
+        )
+
+        self.user_b = User.objects.create_user(
+            email="user-b@test.com",
+            password="test-password",
+        )
+
+        self.entity_a = uuid4()
+        self.entity_b = uuid4()
+
+        self.event_a = uuid4()
+        self.event_b = uuid4()
+
+        self.time_a = datetime(
+            2026,
+            8,
+            10,
+            10,
+            0,
+            tzinfo=UTC,
+        )
+
+        self.time_b = datetime(
+            2026,
+            8,
+            12,
+            10,
+            0,
+            tzinfo=UTC,
+        )
+
+        log_event(
+            tenant=self.tenant_a,
+            actor=self.user_a,
+            action="protocol.submitted",
+            entity_type="protocol",
+            entity_id=self.entity_a,
+            event_id=self.event_a,
+            occurred_at=self.time_a,
+        )
+
+        log_event(
+            tenant=self.tenant_b,
+            actor=self.user_b,
+            action="decision.published",
+            entity_type="decision",
+            entity_id=self.entity_b,
+            event_id=self.event_b,
+            occurred_at=self.time_b,
+        )
+
+    def test_list_logs_returns_all_logs(self):
+        logs = AuditLogQueryService.list_logs()
+
+        self.assertEqual(logs.count(), 2)
+
+    def test_filter_by_tenant(self):
+        logs = AuditLogQueryService.list_logs(
+            tenant_id=self.tenant_a.id,
+        )
+
+        self.assertEqual(logs.count(), 1)
+        self.assertEqual(
+            logs.first().tenant,
+            self.tenant_a,
+        )
+
+    def test_tenant_filter_isolates_other_tenant_logs(self):
+        logs = AuditLogQueryService.list_logs(
+            tenant_id=self.tenant_a.id,
+        )
+
+        self.assertEqual(
+            list(logs.values_list("tenant_id", flat=True)),
+            [self.tenant_a.id],
+        )
+
+    def test_filter_by_actor(self):
+        logs = AuditLogQueryService.list_logs(
+            actor_id=self.user_b.id,
+        )
+
+        self.assertEqual(logs.count(), 1)
+        self.assertEqual(
+            logs.first().actor,
+            self.user_b,
+        )
+
+    def test_filter_by_action(self):
+        logs = AuditLogQueryService.list_logs(
+            action="decision.published",
+        )
+
+        self.assertEqual(logs.count(), 1)
+        self.assertEqual(
+            logs.first().action,
+            "decision.published",
+        )
+
+    def test_filter_by_entity(self):
+        logs = AuditLogQueryService.list_logs(
+            entity_type="protocol",
+            entity_id=self.entity_a,
+        )
+
+        self.assertEqual(logs.count(), 1)
+        self.assertEqual(
+            logs.first().entity_id,
+            self.entity_a,
+        )
+
+    def test_filter_by_event_id(self):
+        logs = AuditLogQueryService.list_logs(
+            event_id=self.event_b,
+        )
+
+        self.assertEqual(logs.count(), 1)
+        self.assertEqual(
+            logs.first().event_id,
+            self.event_b,
+        )
+
+    def test_filter_by_occurred_at_range(self):
+        logs = AuditLogQueryService.list_logs(
+            occurred_from=datetime(
+                2026,
+                8,
+                11,
+                0,
+                0,
+                tzinfo=UTC,
+            ),
+            occurred_to=datetime(
+                2026,
+                8,
+                13,
+                0,
+                0,
+                tzinfo=UTC,
+            ),
+        )
+
+        self.assertEqual(logs.count(), 1)
+        self.assertEqual(
+            logs.first().event_id,
+            self.event_b,
         )
