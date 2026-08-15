@@ -1,6 +1,7 @@
 from .base import BaseEvent
 from common.events.types import EventTypes
-  
+
+
 class ReviewCompleted(BaseEvent):
     """
     Published when an individual review is submitted.
