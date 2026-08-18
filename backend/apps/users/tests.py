@@ -4,6 +4,10 @@ from apps.core.models import RoleChoices
 from apps.tenants.models import Tenant
 from apps.users.models import Membership, User
 from apps.users.services.authorization import AuthorizationService
+from apps.users.services.permissions import (
+    PermissionChoices,
+    PermissionService,
+)
 
 
 class AuthorizationServiceTests(TestCase):
@@ -185,5 +189,180 @@ class AuthorizationServiceTests(TestCase):
                 user_id=self.user.id,
                 tenant_id=self.tenant_b.id,
                 role=RoleChoices.CHAIR,
+            )
+        )
+
+class PermissionServiceTests(TestCase):
+
+    def setUp(self):
+        self.tenant_a = Tenant.objects.create(
+            code="tenant-a",
+            name="Tenant A",
+        )
+
+        self.tenant_b = Tenant.objects.create(
+            code="tenant-b",
+            name="Tenant B",
+        )
+
+        self.user = User.objects.create_user(
+            email="permission@test.com",
+            password="test-password",
+        )
+
+    def test_get_permissions_returns_role_permissions(self):
+        Membership.objects.create(
+            user=self.user,
+            tenant=self.tenant_a,
+            role=RoleChoices.REVIEWER,
+            is_active=True,
+        )
+
+        permissions = PermissionService.get_permissions(
+            user_id=self.user.id,
+            tenant_id=self.tenant_a.id,
+        )
+
+        self.assertEqual(
+            permissions,
+            {
+                PermissionChoices.VIEW_PROTOCOL,
+                PermissionChoices.SUBMIT_REVIEW,
+            },
+        )
+
+    def test_get_permissions_combines_multiple_roles(self):
+        Membership.objects.create(
+            user=self.user,
+            tenant=self.tenant_a,
+            role=RoleChoices.CHAIR,
+            is_active=True,
+        )
+
+        Membership.objects.create(
+            user=self.user,
+            tenant=self.tenant_a,
+            role=RoleChoices.REVIEWER,
+            is_active=True,
+        )
+
+        permissions = PermissionService.get_permissions(
+            user_id=self.user.id,
+            tenant_id=self.tenant_a.id,
+        )
+
+        self.assertEqual(
+            permissions,
+            {
+                PermissionChoices.VIEW_PROTOCOL,
+                PermissionChoices.VIEW_DECISION,
+                PermissionChoices.ISSUE_DECISION,
+                PermissionChoices.VIEW_AUDIT_LOG,
+                PermissionChoices.SUBMIT_REVIEW,
+            },
+        )
+
+    def test_get_permissions_excludes_inactive_role(self):
+        Membership.objects.create(
+            user=self.user,
+            tenant=self.tenant_a,
+            role=RoleChoices.CHAIR,
+            is_active=False,
+        )
+
+        permissions = PermissionService.get_permissions(
+            user_id=self.user.id,
+            tenant_id=self.tenant_a.id,
+        )
+
+        self.assertEqual(
+            permissions,
+            set(),
+        )
+
+    def test_get_permissions_is_tenant_scoped(self):
+        Membership.objects.create(
+            user=self.user,
+            tenant=self.tenant_a,
+            role=RoleChoices.REVIEWER,
+            is_active=True,
+        )
+
+        Membership.objects.create(
+            user=self.user,
+            tenant=self.tenant_b,
+            role=RoleChoices.CHAIR,
+            is_active=True,
+        )
+
+        permissions = PermissionService.get_permissions(
+            user_id=self.user.id,
+            tenant_id=self.tenant_a.id,
+        )
+
+        self.assertEqual(
+            permissions,
+            {
+                PermissionChoices.VIEW_PROTOCOL,
+                PermissionChoices.SUBMIT_REVIEW,
+            },
+        )
+
+    def test_get_permissions_returns_empty_without_membership(self):
+        permissions = PermissionService.get_permissions(
+            user_id=self.user.id,
+            tenant_id=self.tenant_a.id,
+        )
+
+        self.assertEqual(
+            permissions,
+            set(),
+        )
+
+    def test_has_permission_returns_true_for_granted_permission(self):
+        Membership.objects.create(
+            user=self.user,
+            tenant=self.tenant_a,
+            role=RoleChoices.REVIEWER,
+            is_active=True,
+        )
+
+        self.assertTrue(
+            PermissionService.has_permission(
+                user_id=self.user.id,
+                tenant_id=self.tenant_a.id,
+                permission=PermissionChoices.SUBMIT_REVIEW,
+            )
+        )
+
+    def test_has_permission_returns_false_for_ungranted_permission(self):
+        Membership.objects.create(
+            user=self.user,
+            tenant=self.tenant_a,
+            role=RoleChoices.REVIEWER,
+            is_active=True,
+        )
+
+        self.assertFalse(
+            PermissionService.has_permission(
+                user_id=self.user.id,
+                tenant_id=self.tenant_a.id,
+                permission=PermissionChoices.ISSUE_DECISION,
+            )
+        )
+
+    def test_has_permission_does_not_cross_tenant_boundary(self):
+        Membership.objects.create(
+            user=self.user,
+            tenant=self.tenant_a,
+            role=RoleChoices.REVIEWER,
+            is_active=True,
+        )
+
+        self.assertFalse(
+            PermissionService.has_permission(
+                user_id=self.user.id,
+                tenant_id=self.tenant_b.id,
+                permission=PermissionChoices.SUBMIT_REVIEW,
             )
         )

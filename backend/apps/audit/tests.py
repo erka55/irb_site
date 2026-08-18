@@ -13,7 +13,9 @@ from common.events.protocol import ProtocolSubmitted
 from common.event_store.django_repository import (
     DjangoEventStoreRepository,
 )
-
+from apps.audit.access import AuditLogAccessService
+from apps.core.models import RoleChoices
+from apps.users.models import Membership
 
 class AuditLogTests(TestCase):
 
@@ -483,4 +485,147 @@ class AuditLogQueryServiceTests(TestCase):
         self.assertEqual(
             logs.first().event_id,
             self.event_b,
+        )
+class AuditLogAccessServiceTests(TestCase):
+
+    def setUp(self):
+        self.tenant_a = Tenant.objects.create(
+            code="audit-a",
+            name="Audit Tenant A",
+        )
+
+        self.tenant_b = Tenant.objects.create(
+            code="audit-b",
+            name="Audit Tenant B",
+        )
+
+        self.chair = User.objects.create_user(
+            email="chair-a@test.com",
+            password="test-password",
+        )
+
+        self.reviewer = User.objects.create_user(
+            email="reviewer-a@test.com",
+            password="test-password",
+        )
+
+        self.other_tenant_user = User.objects.create_user(
+            email="chair-b@test.com",
+            password="test-password",
+        )
+
+        Membership.objects.create(
+            user=self.chair,
+            tenant=self.tenant_a,
+            role=RoleChoices.CHAIR,
+            is_active=True,
+        )
+
+        Membership.objects.create(
+            user=self.reviewer,
+            tenant=self.tenant_a,
+            role=RoleChoices.REVIEWER,
+            is_active=True,
+        )
+
+        Membership.objects.create(
+            user=self.other_tenant_user,
+            tenant=self.tenant_b,
+            role=RoleChoices.CHAIR,
+            is_active=True,
+        )
+
+    def test_can_view_for_authorized_role(self):
+        self.assertTrue(
+            AuditLogAccessService.can_view(
+                user_id=self.chair.id,
+                tenant_id=self.tenant_a.id,
+            )
+        )
+
+    def test_cannot_view_without_permission(self):
+        self.assertFalse(
+            AuditLogAccessService.can_view(
+                user_id=self.reviewer.id,
+                tenant_id=self.tenant_a.id,
+            )
+        )
+
+    def test_permission_is_tenant_scoped(self):
+        self.assertFalse(
+            AuditLogAccessService.can_view(
+                user_id=self.chair.id,
+                tenant_id=self.tenant_b.id,
+            )
+        )
+
+    def test_list_logs_allows_authorized_user(self):
+        log_event(
+            tenant=self.tenant_a,
+            actor=self.chair,
+            action="protocol.submitted",
+            entity_type="protocol",
+            entity_id=uuid4(),
+        )
+
+        logs = AuditLogAccessService.list_logs(
+            user_id=self.chair.id,
+            tenant_id=self.tenant_a.id,
+        )
+
+        self.assertEqual(
+            logs.count(),
+            1,
+        )
+
+        self.assertEqual(
+            logs.first().tenant,
+            self.tenant_a,
+        )
+
+    def test_list_logs_rejects_unauthorized_user(self):
+        log_event(
+            tenant=self.tenant_a,
+            actor=self.chair,
+            action="protocol.submitted",
+            entity_type="protocol",
+            entity_id=uuid4(),
+        )
+
+        with self.assertRaises(PermissionError):
+            AuditLogAccessService.list_logs(
+                user_id=self.reviewer.id,
+                tenant_id=self.tenant_a.id,
+            )
+
+    def test_list_logs_cannot_cross_tenant_boundary(self):
+        log_event(
+            tenant=self.tenant_a,
+            actor=self.chair,
+            action="protocol.submitted",
+            entity_type="protocol",
+            entity_id=uuid4(),
+        )
+
+        log_event(
+            tenant=self.tenant_b,
+            actor=self.other_tenant_user,
+            action="decision.published",
+            entity_type="decision",
+            entity_id=uuid4(),
+        )
+
+        logs = AuditLogAccessService.list_logs(
+            user_id=self.other_tenant_user.id,
+            tenant_id=self.tenant_b.id,
+        )
+
+        self.assertEqual(
+            logs.count(),
+            1,
+        )
+
+        self.assertEqual(
+            logs.first().tenant,
+            self.tenant_b,
         )
