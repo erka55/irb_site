@@ -8,6 +8,9 @@ from apps.users.services.permissions import (
     PermissionChoices,
     PermissionService,
 )
+from apps.users.services.tenant_context import (
+    TenantContextService,
+)
 
 
 class AuthorizationServiceTests(TestCase):
@@ -365,4 +368,108 @@ class PermissionServiceTests(TestCase):
                 tenant_id=self.tenant_b.id,
                 permission=PermissionChoices.SUBMIT_REVIEW,
             )
+        )
+
+class TenantContextServiceTests(TestCase):
+
+    def setUp(self):
+        self.tenant_a = Tenant.objects.create(
+            code="tenant-a",
+            name="Tenant A",
+        )
+
+        self.tenant_b = Tenant.objects.create(
+            code="tenant-b",
+            name="Tenant B",
+        )
+
+        self.user = User.objects.create_user(
+            email="tenant-context@test.com",
+            password="test-password",
+        )
+
+    def test_resolve_returns_active_membership(self):
+        membership = Membership.objects.create(
+            user=self.user,
+            tenant=self.tenant_a,
+            role=RoleChoices.CHAIR,
+            is_active=True,
+        )
+
+        result = TenantContextService.resolve(
+            user_id=self.user.id,
+            tenant_id=self.tenant_a.id,
+        )
+
+        self.assertEqual(
+            result,
+            membership,
+        )
+
+    def test_resolve_excludes_inactive_membership(self):
+        Membership.objects.create(
+            user=self.user,
+            tenant=self.tenant_a,
+            role=RoleChoices.CHAIR,
+            is_active=False,
+        )
+
+        with self.assertRaises(Membership.DoesNotExist):
+            TenantContextService.resolve(
+                user_id=self.user.id,
+                tenant_id=self.tenant_a.id,
+            )
+
+    def test_resolve_requires_membership(self):
+        with self.assertRaises(Membership.DoesNotExist):
+            TenantContextService.resolve(
+                user_id=self.user.id,
+                tenant_id=self.tenant_a.id,
+            )
+
+    def test_resolve_is_tenant_scoped(self):
+        membership = Membership.objects.create(
+            user=self.user,
+            tenant=self.tenant_a,
+            role=RoleChoices.CHAIR,
+            is_active=True,
+        )
+
+        Membership.objects.create(
+            user=self.user,
+            tenant=self.tenant_b,
+            role=RoleChoices.REVIEWER,
+            is_active=True,
+        )
+
+        result = TenantContextService.resolve(
+            user_id=self.user.id,
+            tenant_id=self.tenant_a.id,
+        )
+
+        self.assertEqual(
+            result,
+            membership,
+        )
+
+    def test_resolve_returns_membership_with_active_role(self):
+        membership = Membership.objects.create(
+            user=self.user,
+            tenant=self.tenant_a,
+            role=RoleChoices.REVIEWER,
+            is_active=True,
+        )
+
+        result = TenantContextService.resolve(
+            user_id=self.user.id,
+            tenant_id=self.tenant_a.id,
+        )
+
+        self.assertEqual(
+            result.role,
+            RoleChoices.REVIEWER,
+        )
+
+        self.assertTrue(
+            result.is_active,
         )
