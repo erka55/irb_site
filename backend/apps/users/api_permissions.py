@@ -1,19 +1,18 @@
 from rest_framework.permissions import BasePermission
 
-from apps.users.services.tenant_context import (
-    TenantContextService,
-)
-from apps.users.services.permissions import (
-    PermissionService,
-)
+from apps.users.services.permissions import PermissionService
+from apps.users.services.tenant_context import TenantContextService
 
 
 class HasTenantPermission(BasePermission):
     """
     DRF permission boundary for tenant-scoped permissions.
 
-    The concrete permission must be provided by the view
-    through the `required_permission` attribute.
+    A view may define a get_required_permission() method for
+    action-specific permissions.
+
+    If the method is not defined, the view may provide a static
+    required_permission attribute.
 
     Tenant context is resolved before checking the permission.
     """
@@ -30,14 +29,14 @@ class HasTenantPermission(BasePermission):
             None,
         )
 
-        required_permission = getattr(
+        get_required_permission = getattr(
             view,
             "get_required_permission",
             None,
         )
 
-        if callable(required_permission):
-            required_permission = required_permission()
+        if callable(get_required_permission):
+            required_permission = get_required_permission()
         else:
             required_permission = getattr(
                 view,

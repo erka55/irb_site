@@ -7,12 +7,39 @@ from apps.protocols.models import Protocol
 from apps.protocols.serializers import ProtocolSerializer
 from apps.protocols.services.workflow import ProtocolWorkflowService
 from common.workflow.engine import InvalidTransitionError
+from apps.users.api_permissions import HasTenantPermission
+from apps.users.services.permissions import PermissionChoices
 
 class ProtocolViewSet(viewsets.ModelViewSet):
 
-    queryset = Protocol.objects.all()
+    permission_classes = [HasTenantPermission]
 
     serializer_class = ProtocolSerializer
+
+    def get_required_permission(self):
+        if self.action in {
+            "create",
+            "update",
+            "partial_update",
+            "destroy",
+        }:
+            return PermissionChoices.EDIT_PROTOCOL
+
+        return PermissionChoices.VIEW_PROTOCOL
+
+    def get_queryset(self):
+        tenant_id = getattr(
+            self.request,
+            "tenant_id",
+            None,
+        )
+
+        if tenant_id is None:
+            return Protocol.objects.none()
+
+        return Protocol.objects.filter(
+            tenant_id=tenant_id,
+        )
 
     def _workflow_response(
         self,
