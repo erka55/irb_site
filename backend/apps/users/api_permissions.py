@@ -32,9 +32,18 @@ class HasTenantPermission(BasePermission):
 
         required_permission = getattr(
             view,
-            "required_permission",
+            "get_required_permission",
             None,
         )
+
+        if callable(required_permission):
+            required_permission = required_permission()
+        else:
+            required_permission = getattr(
+                view,
+                "required_permission",
+                None,
+            )
 
         if tenant_id is None or required_permission is None:
             return False
