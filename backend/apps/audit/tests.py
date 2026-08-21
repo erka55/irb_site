@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 from django.test import TestCase
+from rest_framework.test import APITestCase
 
 from apps.audit.handlers import AuditEventHandler
 from apps.audit.models import AuditLog
@@ -628,4 +629,253 @@ class AuditLogAccessServiceTests(TestCase):
         self.assertEqual(
             logs.first().tenant,
             self.tenant_b,
+        )
+
+
+class AuditLogAPIAccessTests(APITestCase):
+
+    def setUp(self):
+        self.tenant_a = Tenant.objects.create(
+            code="api-a",
+            name="API Tenant A",
+        )
+
+        self.tenant_b = Tenant.objects.create(
+            code="api-b",
+            name="API Tenant B",
+        )
+
+        self.chair = User.objects.create_user(
+            email="api-chair@test.com",
+            password="test-password",
+        )
+
+        self.reviewer = User.objects.create_user(
+            email="api-reviewer@test.com",
+            password="test-password",
+        )
+
+        self.other_chair = User.objects.create_user(
+            email="api-other-chair@test.com",
+            password="test-password",
+        )
+
+        Membership.objects.create(
+            user=self.chair,
+            tenant=self.tenant_a,
+            role=RoleChoices.CHAIR,
+            is_active=True,
+        )
+
+        Membership.objects.create(
+            user=self.reviewer,
+            tenant=self.tenant_a,
+            role=RoleChoices.REVIEWER,
+            is_active=True,
+        )
+
+        Membership.objects.create(
+            user=self.other_chair,
+            tenant=self.tenant_b,
+            role=RoleChoices.CHAIR,
+            is_active=True,
+        )
+
+        self.log_a = log_event(
+            tenant=self.tenant_a,
+            actor=self.chair,
+            action="protocol.submitted",
+            entity_type="protocol",
+            entity_id=uuid4(),
+        )
+
+        self.log_b = log_event(
+            tenant=self.tenant_b,
+            actor=self.other_chair,
+            action="decision.published",
+            entity_type="decision",
+            entity_id=uuid4(),
+        )
+
+    def _authenticate(self, user):
+        self.client.force_authenticate(
+            user=user,
+        )
+
+    def test_anonymous_user_cannot_list_audit_logs(self):
+        response = self.client.get(
+            "/api/audit/",
+            HTTP_X_TENANT_ID=str(self.tenant_a.id),
+        )
+
+        self.assertEqual(
+            response.status_code,
+            403,
+        )
+
+    def test_reviewer_without_audit_permission_cannot_list_logs(self):
+        self._authenticate(self.reviewer)
+
+        response = self.client.get(
+            "/api/audit/",
+            HTTP_X_TENANT_ID=str(self.tenant_a.id),
+        )
+
+        self.assertEqual(
+            response.status_code,
+            403,
+        )
+
+    def test_chair_can_list_audit_logs_in_own_tenant(self):
+        self._authenticate(self.chair)
+
+        response = self.client.get(
+            "/api/audit/",
+            HTTP_X_TENANT_ID=str(self.tenant_a.id),
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200,
+        )
+
+        returned_ids = {
+            item["id"]
+            for item in response.data
+        }
+
+        self.assertIn(
+            str(self.log_a.id),
+            returned_ids,
+        )
+
+        self.assertNotIn(
+            str(self.log_b.id),
+            returned_ids,
+        )
+
+    def test_user_cannot_access_audit_logs_from_different_tenant(self):
+        self._authenticate(self.chair)
+
+        response = self.client.get(
+            "/api/audit/",
+            HTTP_X_TENANT_ID=str(self.tenant_b.id),
+        )
+
+        self.assertEqual(
+            response.status_code,
+            403,
+        )
+
+    def test_audit_log_action_filter(self):
+        self._authenticate(self.chair)
+
+        response = self.client.get(
+            "/api/audit/",
+            {
+                "action": "protocol.submitted",
+            },
+            HTTP_X_TENANT_ID=str(self.tenant_a.id),
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200,
+        )
+
+        returned_ids = {
+            item["id"]
+            for item in response.data
+        }
+
+        self.assertEqual(
+            returned_ids,
+            {str(self.log_a.id)},
+        )
+
+    def test_audit_log_entity_type_filter(self):
+        self._authenticate(self.chair)
+
+        response = self.client.get(
+            "/api/audit/",
+            {
+                "entity_type": "protocol",
+            },
+            HTTP_X_TENANT_ID=str(self.tenant_a.id),
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200,
+        )
+
+        returned_ids = {
+            item["id"]
+            for item in response.data
+        }
+
+        self.assertEqual(
+            returned_ids,
+            {str(self.log_a.id)},
+        )
+
+    def test_audit_log_is_read_only(self):
+        self._authenticate(self.chair)
+
+        response = self.client.post(
+            "/api/audit/",
+            {
+                "action": "audit.fake",
+                "entity_type": "protocol",
+                "entity_id": str(uuid4()),
+            },
+            format="json",
+            HTTP_X_TENANT_ID=str(self.tenant_a.id),
+        )
+
+        self.assertEqual(
+            response.status_code,
+            405,
+        )
+
+    def test_audit_log_detail_is_read_only(self):
+        self._authenticate(self.chair)
+
+        response = self.client.get(
+            f"/api/audit/{self.log_a.id}/",
+            HTTP_X_TENANT_ID=str(self.tenant_a.id),
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200,
+        )
+
+        self.assertEqual(
+            response.data["id"],
+            str(self.log_a.id),
+        )
+
+        update_response = self.client.patch(
+            f"/api/audit/{self.log_a.id}/",
+            {
+                "action": "audit.modified",
+            },
+            format="json",
+            HTTP_X_TENANT_ID=str(self.tenant_a.id),
+        )
+
+        self.assertEqual(
+            update_response.status_code,
+            405,
+        )
+
+        delete_response = self.client.delete(
+            f"/api/audit/{self.log_a.id}/",
+            HTTP_X_TENANT_ID=str(self.tenant_a.id),
+        )
+
+        self.assertEqual(
+            delete_response.status_code,
+            405,
         )
