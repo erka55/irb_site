@@ -17,6 +17,9 @@ from common.event_store.django_repository import (
 from apps.audit.access import AuditLogAccessService
 from apps.core.models import RoleChoices
 from apps.users.models import Membership
+from common.events.review import ReviewCompleted
+from common.events.monitoring import ProgressReportSubmitted
+from common.events.incident import IncidentReportSubmitted
 
 class AuditLogTests(TestCase):
 
@@ -224,6 +227,73 @@ class AuditEventHandlerTests(TestCase):
             {
                 "protocol_id": str(protocol_id),
             },
+        )
+
+    def test_handle_uses_review_id_as_entity_id(self):
+        protocol_id = uuid4()
+        review_id = uuid4()
+
+        event = ReviewCompleted(
+            tenant_id=self.tenant.id,
+            actor_id=self.user.id,
+            protocol_id=protocol_id,
+            review_id=review_id,
+            reviewer_id=self.user.id,
+        )
+
+        log = AuditEventHandler.handle(event)
+
+        self.assertEqual(
+            log.entity_type,
+            "review",
+        )
+        self.assertEqual(
+            log.entity_id,
+            review_id,
+        )
+
+    def test_handle_uses_progress_report_id_as_entity_id(self):
+        protocol_id = uuid4()
+        progress_report_id = uuid4()
+
+        event = ProgressReportSubmitted(
+            tenant_id=self.tenant.id,
+            actor_id=self.user.id,
+            protocol_id=protocol_id,
+            progress_report_id=progress_report_id,
+        )
+
+        log = AuditEventHandler.handle(event)
+
+        self.assertEqual(
+            log.entity_type,
+            "progress_report",
+        )
+        self.assertEqual(
+            log.entity_id,
+            progress_report_id,
+        )
+
+    def test_handle_uses_incident_report_id_as_entity_id(self):
+        protocol_id = uuid4()
+        incident_report_id = uuid4()
+
+        event = IncidentReportSubmitted(
+            tenant_id=self.tenant.id,
+            actor_id=self.user.id,
+            protocol_id=protocol_id,
+            incident_report_id=incident_report_id,
+        )
+
+        log = AuditEventHandler.handle(event)
+
+        self.assertEqual(
+            log.entity_type,
+            "incident_report",
+        )
+        self.assertEqual(
+            log.entity_id,
+            incident_report_id,
         )
 
 class DjangoEventStoreRepositoryTests(TestCase):
