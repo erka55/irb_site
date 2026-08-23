@@ -8,6 +8,7 @@ from common.events.registry import registry
 from apps.audit.handlers import AuditEventHandler
 from common.events.bootstrap import register_event_handlers
 from common.events.types import EventTypes
+from unittest.mock import Mock
 
 class TestEvent(BaseEvent):
     def __init__(self):
@@ -99,6 +100,51 @@ class InMemoryEventPublisherTests(SimpleTestCase):
         event = TestEvent()
 
         self.publisher.publish(event)
+
+    def test_publish_persists_event_before_handlers_run(self):
+        calls = []
+
+        event_store = Mock()
+
+        def handler(event):
+            calls.append("handler")
+
+        registry.register(
+            "test.event",
+            handler,
+        )
+
+        event_store.append.side_effect = (
+            lambda event: calls.append("store")
+        )
+
+        publisher = InMemoryEventPublisher(
+            event_store=event_store,
+        )
+
+        event = TestEvent()
+
+        publisher.publish(event)
+
+        event_store.append.assert_called_once_with(event)
+
+        self.assertEqual(
+            calls,
+            ["store", "handler"],
+        )
+
+    def test_publish_passes_same_event_to_event_store(self):
+        event_store = Mock()
+
+        publisher = InMemoryEventPublisher(
+            event_store=event_store,
+        )
+
+        event = TestEvent()
+
+        publisher.publish(event)
+
+        event_store.append.assert_called_once_with(event)
 
 
 class AuditEventHandlerCoverageTests(SimpleTestCase):

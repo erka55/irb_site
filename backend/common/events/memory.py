@@ -7,10 +7,8 @@ class InMemoryEventPublisher(EventPublisher):
     """
     Simple publisher used during development.
 
-    Future implementations may publish to:
-    - RabbitMQ
-    - Kafka
-    - Redis Streams
+    Events may optionally be persisted through an event store
+    before registered handlers are executed.
     """
 
     def publish(
@@ -21,6 +19,9 @@ class InMemoryEventPublisher(EventPublisher):
         print(
             f"[EVENT] {event.event_type} ({event.event_id})"
         )
+
+        if self.event_store is not None:
+            self.event_store.append(event)
 
         handlers = registry.get_handlers(
             event.event_type

@@ -1,15 +1,23 @@
 from .base import BaseEvent
+from common.event_store.repository import EventStoreRepository
 
 
 class EventPublisher:
     """
     Base publisher interface.
 
-    Future implementations:
-        - RabbitMQ
-        - Kafka
-        - Redis Streams
+    A publisher persists the event first and then
+    dispatches it to registered handlers.
     """
 
-    def publish(self, event: BaseEvent) -> None:
+    def __init__(
+        self,
+        event_store: EventStoreRepository | None = None,
+    ):
+        self.event_store = event_store
+
+    def publish(
+        self,
+        event: BaseEvent,
+    ) -> None:
         raise NotImplementedError
