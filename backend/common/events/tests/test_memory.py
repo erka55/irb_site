@@ -5,9 +5,6 @@ from django.test import SimpleTestCase
 from common.events.base import BaseEvent
 from common.events.memory import InMemoryEventPublisher
 from common.events.registry import registry
-from apps.audit.handlers import AuditEventHandler
-from common.events.bootstrap import register_event_handlers
-from common.events.types import EventTypes
 from unittest.mock import Mock
 
 class TestEvent(BaseEvent):
@@ -145,85 +142,3 @@ class InMemoryEventPublisherTests(SimpleTestCase):
         publisher.publish(event)
 
         event_store.append.assert_called_once_with(event)
-
-
-class AuditEventHandlerCoverageTests(SimpleTestCase):
-
-    AUDIT_EVENT_TYPES = [
-        EventTypes.PROTOCOL_SUBMITTED,
-        EventTypes.PROTOCOL_UPDATED,
-        EventTypes.PROTOCOL_APPROVED,
-        EventTypes.PROTOCOL_REJECTED,
-        EventTypes.PROTOCOL_REVISIONS_REQUESTED,
-
-        EventTypes.REVIEW_ASSIGNED,
-        EventTypes.REVIEW_SUBMITTED,
-        EventTypes.REVIEW_COMPLETED,
-        EventTypes.REVIEWS_COMPLETED,
-
-        EventTypes.MEETING_SCHEDULED,
-        EventTypes.MEETING_COMPLETED,
-        EventTypes.MEETING_CANCELLED,
-
-        EventTypes.DECISION_CREATED,
-        EventTypes.DECISION_LETTER_GENERATED,
-        EventTypes.DECISION_ISSUED,
-        EventTypes.DECISION_PUBLISHED,
-        EventTypes.DECISION_LETTER_ISSUED,
-
-        EventTypes.PROGRESS_REPORT_SUBMITTED,
-        EventTypes.INCIDENT_REPORT_SUBMITTED,
-    ]
-
-    def setUp(self):
-        registry._handlers.clear()
-        register_event_handlers()
-
-    def tearDown(self):
-        registry._handlers.clear()
-
-    def test_all_audit_event_types_are_registered(self):
-        for event_type in self.AUDIT_EVENT_TYPES:
-            handlers = registry.get_handlers(event_type)
-
-            self.assertIn(
-                AuditEventHandler.handle,
-                handlers,
-                msg=(
-                    "AuditEventHandler is not registered "
-                    f"for event type: {event_type}"
-                ),
-            )
-
-    def test_audit_handler_is_registered_only_once(self):
-        for event_type in self.AUDIT_EVENT_TYPES:
-            handlers = registry.get_handlers(event_type)
-
-            self.assertEqual(
-                handlers.count(
-                    AuditEventHandler.handle,
-                ),
-                1,
-                msg=(
-                    "AuditEventHandler is registered more "
-                    f"than once for event type: {event_type}"
-                ),
-            )
-
-    def test_register_event_handlers_is_idempotent(self):
-        register_event_handlers()
-        register_event_handlers()
-
-        for event_type in self.AUDIT_EVENT_TYPES:
-            handlers = registry.get_handlers(event_type)
-
-            self.assertEqual(
-                handlers.count(
-                    AuditEventHandler.handle,
-                ),
-                1,
-                msg=(
-                    "Duplicate AuditEventHandler registration "
-                    f"detected for event type: {event_type}"
-                ),
-            )

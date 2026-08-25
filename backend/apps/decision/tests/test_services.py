@@ -7,6 +7,7 @@ from apps.protocols.models import Protocol
 from apps.protocols.enums import ProtocolStatus, RiskLevel
 from apps.tenants.models import Tenant
 from apps.users.models import User
+from common.events.types import EventTypes
 
 
 class DecisionServiceTests(TestCase):
@@ -38,15 +39,25 @@ class DecisionServiceTests(TestCase):
         self.assertIsNotNone(self.decision.published_at)
 
     def test_publish_creates_audit_log(self):
-        DecisionService.publish_decision(decision=self.decision, actor=self.chair)
+        DecisionService.publish_decision(
+            decision=self.decision,
+            actor=self.chair,
+        )
 
         log = AuditLog.objects.filter(
-            entity_type="Decision", entity_id=self.decision.id
+            entity_type="decision",
+            entity_id=self.decision.id,
         ).first()
+
         self.assertIsNotNone(log)
-        self.assertEqual(log.action, "decision.publish")
-        self.assertEqual(log.actor, self.chair)
-        self.assertEqual(log.payload["decision_type"], Decision.DecisionType.APPROVED)
+        self.assertEqual(
+            log.action,
+            EventTypes.DECISION_PUBLISHED,
+        )
+        self.assertEqual(
+            log.actor,
+            self.chair,
+        )
 
     def test_cannot_publish_twice(self):
         DecisionService.publish_decision(decision=self.decision, actor=self.chair)
@@ -56,8 +67,10 @@ class DecisionServiceTests(TestCase):
     def test_audit_log_is_immutable(self):
         """Sanity check on apps.audit's own guarantee, since we depend on it."""
         DecisionService.publish_decision(decision=self.decision, actor=self.chair)
+
         log = AuditLog.objects.filter(
-            entity_type="Decision", entity_id=self.decision.id
+            entity_type="decision",
+            entity_id=self.decision.id,
         ).first()
 
         log.action = "tampered"

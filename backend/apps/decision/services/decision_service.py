@@ -1,12 +1,11 @@
 from django.db import transaction
 from django.utils import timezone
 
-from apps.audit.services import log_event
 from apps.core.models import RoleChoices
 from apps.protocols.models import Protocol
 from apps.users.models import Membership
 from common.events.decision import DecisionPublished
-from common.events.memory import InMemoryEventPublisher
+from common.events.factory import get_event_publisher
 
 from ..models.decision import Decision
 
@@ -26,20 +25,7 @@ class DecisionService:
         decision.published_at = timezone.now()
         decision.save()
 
-        # Business-action audit record.
-        log_event(
-            tenant=decision.tenant,
-            actor=actor,
-            action="decision.publish",
-            entity_type="Decision",
-            entity_id=decision.id,
-            payload={
-                "decision_type": decision.decision_type,
-                "protocol_id": str(decision.protocol_id),
-            },
-        )
-
-        publisher = InMemoryEventPublisher()
+        publisher = get_event_publisher()
 
         publisher.publish(
             DecisionPublished(
