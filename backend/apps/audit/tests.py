@@ -20,6 +20,7 @@ from apps.users.models import Membership
 from common.events.review import ReviewCompleted
 from common.events.monitoring import ProgressReportSubmitted
 from common.events.incident import IncidentReportSubmitted
+from common.events.types import EventTypes
 
 class AuditLogTests(TestCase):
 
@@ -948,4 +949,22 @@ class AuditLogAPIAccessTests(APITestCase):
         self.assertEqual(
             delete_response.status_code,
             405,
+        )
+
+class AuditEventCoverageTests(TestCase):
+
+    def test_every_event_type_has_audit_mapping(self):
+        event_types = {
+            value
+            for name, value in vars(EventTypes).items()
+            if name.isupper()
+        }
+
+        mapped_event_types = set(
+            AuditEventHandler.ENTITY_MAPPING.keys()
+        )
+
+        self.assertSetEqual(
+            event_types,
+            mapped_event_types,
         )
