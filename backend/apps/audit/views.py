@@ -4,7 +4,10 @@ from rest_framework.response import Response
 
 from apps.audit.access import AuditLogAccessService
 from apps.audit.models import AuditLog
-from apps.audit.serializers import AuditLogSerializer
+from apps.audit.serializers import (
+    AuditLogFilterSerializer,
+    AuditLogSerializer,
+)
 
 
 class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
@@ -55,23 +58,52 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     def list(self, request, *args, **kwargs):
         tenant_id = self._check_access()
 
+        filter_serializer = AuditLogFilterSerializer(
+            data=request.query_params,
+        )
+
+        filter_serializer.is_valid(
+            raise_exception=True,
+        )
+
+        filters = filter_serializer.validated_data
+
         queryset = AuditLogAccessService.list_logs(
             user_id=request.user.id,
             tenant_id=tenant_id,
-            actor_id=request.query_params.get("actor_id"),
-            action=request.query_params.get("action"),
-            entity_type=request.query_params.get("entity_type"),
-            entity_id=request.query_params.get("entity_id"),
-            event_id=request.query_params.get("event_id"),
+            actor_id=filters.get(
+                "actor_id",
+            ),
+            action=filters.get(
+                "action",
+            ),
+            entity_type=filters.get(
+                "entity_type",
+            ),
+            entity_id=filters.get(
+                "entity_id",
+            ),
+            event_id=filters.get(
+                "event_id",
+            ),
+            occurred_from=filters.get(
+                "occurred_from",
+            ),
+            occurred_to=filters.get(
+                "occurred_to",
+            ),
         )
 
-        page = self.paginate_queryset(queryset)
+        page = self.paginate_queryset(
+            queryset,
+        )
 
         if page is not None:
             serializer = self.get_serializer(
                 page,
                 many=True,
             )
+
             return self.get_paginated_response(
                 serializer.data,
             )
@@ -81,9 +113,16 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
             many=True,
         )
 
-        return Response(serializer.data)
+        return Response(
+            serializer.data,
+        )
 
-    def retrieve(self, request, *args, **kwargs):
+    def retrieve(
+        self,
+        request,
+        *args,
+        **kwargs,
+    ):
         self._check_access()
 
         instance = self.get_queryset().filter(
@@ -95,6 +134,10 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
                 "Audit log not found."
             )
 
-        serializer = self.get_serializer(instance)
+        serializer = self.get_serializer(
+            instance,
+        )
 
-        return Response(serializer.data)
+        return Response(
+            serializer.data,
+        )
