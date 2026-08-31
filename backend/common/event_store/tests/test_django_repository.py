@@ -100,6 +100,7 @@ class DjangoEventStoreRepositoryTests(TestCase):
 
     def test_append_persists_same_event_identity(self):
         event_id = str(uuid4())
+
         occurred_at = datetime(
             2026,
             8,
@@ -166,3 +167,72 @@ class DjangoEventStoreRepositoryTests(TestCase):
 
         with self.assertRaises(Exception):
             self.repository.append(second_event)
+
+    def test_get_returns_event_by_event_id(self):
+        event = TestEvent(
+            tenant_id=self.tenant.id,
+            actor_id=self.actor.id,
+            protocol_id=self.protocol_id,
+        )
+
+        persisted = self.repository.append(event)
+
+        result = self.repository.get(
+            event.event_id,
+        )
+
+        self.assertEqual(
+            result.id,
+            persisted.id,
+        )
+
+        self.assertEqual(
+            str(result.event_id),
+            event.event_id,
+        )
+
+        self.assertEqual(
+            result.occurred_at,
+            event.occurred_at,
+        )
+
+        self.assertEqual(
+            result.tenant_id,
+            self.tenant.id,
+        )
+
+        self.assertEqual(
+            result.actor_id,
+            self.actor.id,
+        )
+
+        self.assertEqual(
+            result.entity_id,
+            self.protocol_id,
+        )
+
+        self.assertEqual(
+            result.payload,
+            event.payload,
+        )
+
+    def test_exists_returns_correct_result(self):
+        event = TestEvent(
+            tenant_id=self.tenant.id,
+            actor_id=self.actor.id,
+            protocol_id=self.protocol_id,
+        )
+
+        self.assertFalse(
+            self.repository.exists(
+                event.event_id,
+            )
+        )
+
+        self.repository.append(event)
+
+        self.assertTrue(
+            self.repository.exists(
+                event.event_id,
+            )
+        )

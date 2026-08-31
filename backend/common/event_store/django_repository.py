@@ -14,3 +14,13 @@ class DjangoEventStoreRepository(EventStoreRepository):
 
     def append(self, event: BaseEvent) -> AuditLog:
         return AuditEventHandler.handle(event)
+
+    def get(self, event_id: str) -> AuditLog:
+        return AuditLog.objects.get(
+            event_id=event_id,
+        )
+
+    def exists(self, event_id: str) -> bool:
+        return AuditLog.objects.filter(
+            event_id=event_id,
+        ).exists()
