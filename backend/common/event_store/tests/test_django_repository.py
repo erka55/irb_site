@@ -236,3 +236,22 @@ class DjangoEventStoreRepositoryTests(TestCase):
                 event.event_id,
             )
         )
+
+    def test_get_raises_when_event_does_not_exist(self):
+        missing_event_id = str(uuid4())
+
+        with self.assertRaises(
+            AuditLog.DoesNotExist,
+        ):
+            self.repository.get(
+                missing_event_id,
+            )
+
+    def test_exists_returns_false_for_missing_event(self):
+        missing_event_id = str(uuid4())
+
+        self.assertFalse(
+            self.repository.exists(
+                missing_event_id,
+            )
+        )
