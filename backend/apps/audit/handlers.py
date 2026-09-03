@@ -94,13 +94,14 @@ class AuditEventHandler:
 
     @classmethod
     def handle(cls, event):
-        tenant = None
-        actor = None
+        if not event.tenant_id:
+            raise ValueError("Tenant is required for audit events.")
 
-        if event.tenant_id:
-            tenant = Tenant.objects.filter(
-                id=event.tenant_id
-            ).first()
+        tenant = Tenant.objects.filter(
+            id=event.tenant_id
+        ).first()
+
+        actor = None
 
         if event.actor_id:
             actor = User.objects.filter(

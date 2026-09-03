@@ -16,7 +16,7 @@ class ProgressReportSubmitted(BaseEvent):
     ):
         super().__init__(
             event_type=EventTypes.PROGRESS_REPORT_SUBMITTED,
-            tenant_id=str(tenant_id),
+            tenant_id=str(tenant_id) if tenant_id else None,
             actor_id=str(actor_id) if actor_id else None,
             payload={
                 "protocol_id": str(protocol_id),

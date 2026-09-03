@@ -172,6 +172,16 @@ class AuditEventHandlerTests(TestCase):
             protocol_id,
         )
 
+    def test_handle_requires_tenant(self):
+        event = ProtocolSubmitted(
+            tenant_id=None,
+            actor_id=self.user.id,
+            protocol_id=uuid4(),
+        )
+
+        with self.assertRaises(ValueError):
+            AuditEventHandler.handle(event)
+
     def test_handle_preserves_event_metadata(self):
         protocol_id = uuid4()
         event_id = str(uuid4())

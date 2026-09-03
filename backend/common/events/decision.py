@@ -16,7 +16,7 @@ class DecisionCreated(BaseEvent):
     ):
         super().__init__(
             event_type=EventTypes.DECISION_CREATED,
-            tenant_id=str(tenant_id),
+            tenant_id=str(tenant_id) if tenant_id else None,
             actor_id=str(actor_id) if actor_id else None,
             payload={
                 "protocol_id": str(protocol_id),
@@ -40,7 +40,7 @@ class DecisionLetterGenerated(BaseEvent):
     ):
         super().__init__(
             event_type=EventTypes.DECISION_LETTER_GENERATED,
-            tenant_id=str(tenant_id),
+            tenant_id=str(tenant_id) if tenant_id else None,
             actor_id=str(actor_id) if actor_id else None,
             payload={
                 "protocol_id": str(protocol_id),
@@ -64,7 +64,7 @@ class DecisionPublished(BaseEvent):
     ):
         super().__init__(
             event_type=EventTypes.DECISION_PUBLISHED,
-            tenant_id=str(tenant_id),
+            tenant_id=str(tenant_id) if tenant_id else None,
             actor_id=str(actor_id) if actor_id else None,
             payload={
                 "protocol_id": str(protocol_id),
@@ -88,7 +88,7 @@ class DecisionLetterIssued(BaseEvent):
     ):
         super().__init__(
             event_type=EventTypes.DECISION_LETTER_ISSUED,
-            tenant_id=str(tenant_id),
+            tenant_id=str(tenant_id) if tenant_id else None,
             actor_id=str(actor_id) if actor_id else None,
             payload={
                 "protocol_id": str(protocol_id),
