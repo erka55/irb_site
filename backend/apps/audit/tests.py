@@ -24,10 +24,17 @@ from common.events.types import EventTypes
 
 class AuditLogTests(TestCase):
 
+    def setUp(self):
+        self.tenant = Tenant.objects.create(
+            code="test-tenant",
+            name="Test Tenant",
+        )
+
     def test_log_event_creates_audit_log(self):
         entity_id = uuid4()
 
         log = log_event(
+            tenant=self.tenant,
             action="decision.published",
             entity_type="Decision",
             entity_id=entity_id,
@@ -66,6 +73,7 @@ class AuditLogTests(TestCase):
         )
 
         log = log_event(
+            tenant=self.tenant,
             action="decision.published",
             entity_type="Decision",
             entity_id=entity_id,
@@ -86,6 +94,7 @@ class AuditLogTests(TestCase):
         event_id = uuid4()
 
         log_event(
+            tenant=self.tenant,
             action="decision.published",
             entity_type="Decision",
             entity_id=uuid4(),
@@ -94,6 +103,7 @@ class AuditLogTests(TestCase):
 
         with self.assertRaises(Exception):
             log_event(
+                tenant=self.tenant,
                 action="decision.published",
                 entity_type="Decision",
                 entity_id=uuid4(),
@@ -102,6 +112,7 @@ class AuditLogTests(TestCase):
 
     def test_audit_log_cannot_be_updated(self):
         log = AuditLog.objects.create(
+            tenant=self.tenant,
             action="decision.published",
             entity_type="Decision",
             entity_id=uuid4(),
@@ -114,6 +125,7 @@ class AuditLogTests(TestCase):
 
     def test_audit_log_cannot_be_deleted(self):
         log = AuditLog.objects.create(
+            tenant=self.tenant,
             action="decision.published",
             entity_type="Decision",
             entity_id=uuid4(),
@@ -124,6 +136,7 @@ class AuditLogTests(TestCase):
 
     def test_audit_log_has_no_soft_delete_api(self):
         log = AuditLog.objects.create(
+            tenant=self.tenant,
             action="decision.published",
             entity_type="Decision",
             entity_id=uuid4(),
