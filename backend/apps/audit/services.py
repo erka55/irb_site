@@ -7,7 +7,7 @@ def log_event(
     entity_type,
     entity_id,
     actor=None,
-    tenant=None,
+    tenant,
     payload=None,
     event_id=None,
     occurred_at=None,

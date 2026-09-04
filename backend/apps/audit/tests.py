@@ -145,7 +145,13 @@ class AuditLogTests(TestCase):
         self.assertFalse(
             hasattr(log, "soft_delete")
         )
-
+    def test_log_event_requires_tenant(self):
+        with self.assertRaises(TypeError):
+            log_event(
+                action="decision.published",
+                entity_type="Decision",
+                entity_id=uuid4(),
+            )
 
 class AuditEventHandlerTests(TestCase):
 
