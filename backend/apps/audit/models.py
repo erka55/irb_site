@@ -11,8 +11,6 @@ class AuditLog(AuditBaseModel):
         Tenant,
         on_delete=models.PROTECT,
         related_name="audit_logs",
-        null=True,
-        blank=True,
     )
 
     actor = models.ForeignKey(
