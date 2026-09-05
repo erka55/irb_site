@@ -101,6 +101,11 @@ class AuditEventHandler:
             id=event.tenant_id
         ).first()
 
+        if tenant is None:
+            raise ValueError(
+                f"Tenant not found: {event.tenant_id}"
+            )
+
         actor = None
 
         if event.actor_id:
