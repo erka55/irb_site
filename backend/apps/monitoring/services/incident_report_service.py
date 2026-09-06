@@ -7,14 +7,14 @@ from apps.monitoring.models import (
     IncidentReportStatus,
 )
 from common.events.incident import IncidentReportSubmitted
-from common.events.memory import InMemoryEventPublisher
+from common.events.factory import get_event_publisher
 
 
 class IncidentReportService:
 
     MAX_REPORTING_DELAY = timedelta(hours=48)
 
-    publisher = InMemoryEventPublisher()
+    publisher = get_event_publisher()
 
     @classmethod
     def record_reported_at(
