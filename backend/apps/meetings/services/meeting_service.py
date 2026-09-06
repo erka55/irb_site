@@ -6,7 +6,7 @@ from common.events.meeting import (
     MeetingCompleted,
     MeetingCancelled,
 )
-from common.events.memory import InMemoryEventPublisher
+from common.events.factory import get_event_publisher
 
 class MeetingService:
 
@@ -28,7 +28,7 @@ class MeetingService:
         meeting.status = MeetingStatus.COMPLETED
         meeting.save(update_fields=["status", "updated_at"])
 
-        publisher = InMemoryEventPublisher()
+        publisher = get_event_publisher()
 
         publisher.publish(
             MeetingCompleted(
@@ -48,7 +48,7 @@ class MeetingService:
         meeting.status = MeetingStatus.CANCELLED
         meeting.save(update_fields=["status", "updated_at"])
 
-        publisher = InMemoryEventPublisher()
+        publisher = get_event_publisher()
 
         publisher.publish(
             MeetingCancelled(
