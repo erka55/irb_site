@@ -8,8 +8,7 @@ from common.events.decision import (
     DecisionLetterIssued,
     DecisionPublished,
 )
-from common.events.memory import InMemoryEventPublisher
-
+from common.events.factory import get_event_publisher
 
 class DecisionPublicationService:
     """
@@ -22,7 +21,7 @@ class DecisionPublicationService:
     - Publish corresponding domain events
     """
 
-    publisher = InMemoryEventPublisher()
+    publisher = get_event_publisher()
 
     @classmethod
     @transaction.atomic
