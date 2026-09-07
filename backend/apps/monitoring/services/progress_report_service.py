@@ -4,13 +4,13 @@ from apps.monitoring.models import (
     ProgressReport,
     ProgressReportStatus,
 )
-from common.events.memory import InMemoryEventPublisher
+from common.events.factory import get_event_publisher
 from common.events.monitoring import ProgressReportSubmitted
 
 
 class ProgressReportService:
 
-    publisher = InMemoryEventPublisher()
+    publisher = get_event_publisher()
 
     @staticmethod
     def submit_report(
