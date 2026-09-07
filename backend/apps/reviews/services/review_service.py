@@ -1,4 +1,4 @@
-from common.events.memory import InMemoryEventPublisher
+from common.events.factory import get_event_publisher
 from common.events.review import ReviewCompleted
 from django.utils import timezone
 
@@ -51,7 +51,7 @@ class ReviewService:
 
         review.save()
 
-        publisher = InMemoryEventPublisher()
+        publisher = get_event_publisher()
 
         publisher.publish(
             ReviewCompleted(
