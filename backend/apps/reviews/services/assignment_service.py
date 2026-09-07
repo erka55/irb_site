@@ -1,4 +1,4 @@
-from common.events.memory import InMemoryEventPublisher
+from common.events.factory import get_event_publisher
 from common.events.review import ReviewAssigned
 
 from apps.protocols.models import Protocol
@@ -44,7 +44,7 @@ class ReviewAssignmentService:
             status=ReviewStatus.ASSIGNED,
         )
 
-        publisher = InMemoryEventPublisher()
+        publisher = get_event_publisher()
 
         publisher.publish(
             ReviewAssigned(
