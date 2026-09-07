@@ -3,7 +3,7 @@ from apps.protocols.models import ProtocolStatusHistory
 from apps.protocols.services.versioning import ProtocolVersionService
 
 from common.workflow.engine import WorkflowEngine
-from common.events.memory import InMemoryEventPublisher
+from common.events.factory import get_event_publisher
 from common.events.protocol import (
     ProtocolSubmitted,
     ProtocolApproved,
@@ -45,7 +45,7 @@ class ProtocolWorkflowService:
             user=changed_by,
         )
 
-        publisher = InMemoryEventPublisher()
+        publisher = get_event_publisher()
 
         event_map = {
             ProtocolStatus.SUBMITTED: (
