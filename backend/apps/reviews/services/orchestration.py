@@ -1,4 +1,4 @@
-from common.events.memory import InMemoryEventPublisher
+from common.events.factory import get_event_publisher
 from common.events.review import ReviewsCompleted
 
 from apps.reviews.services.aggregation_service import (
@@ -37,7 +37,7 @@ class ReviewOrchestrationService:
             f"Recommendation={recommendation}"
         )
 
-        publisher = InMemoryEventPublisher()
+        publisher = get_event_publisher()
 
         publisher.publish(
             ReviewsCompleted(
