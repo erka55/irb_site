@@ -1,5 +1,5 @@
 from django.db import models
-
+from apps.core.models import BaseModel
 
 class ReviewStatus(models.TextChoices):
     ASSIGNED = "ASSIGNED", "Assigned"
@@ -16,7 +16,7 @@ class ReviewRecommendation(models.TextChoices):
     DEFER = "DEFER", "Defer"
     REJECT = "REJECT", "Reject"
 
-class Review(models.Model):
+class Review(BaseModel):
     protocol_id = models.UUIDField()
 
     reviewer_id = models.UUIDField()

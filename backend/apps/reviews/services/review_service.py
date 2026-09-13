@@ -2,6 +2,7 @@ from common.events.factory import get_event_publisher
 from common.events.review import ReviewCompleted
 from django.utils import timezone
 
+from apps.protocols.models import Protocol
 from apps.reviews.models import (
     Review,
     ReviewStatus,
@@ -51,11 +52,15 @@ class ReviewService:
 
         review.save()
 
+        protocol = Protocol.objects.select_related(
+            "tenant"
+        ).get(id=review.protocol_id)
+
         publisher = get_event_publisher()
 
         publisher.publish(
             ReviewCompleted(
-                tenant_id=None,
+                tenant_id=protocol.tenant_id,
                 actor_id=str(review.reviewer_id),
                 protocol_id=review.protocol_id,
                 review_id=review.id,
