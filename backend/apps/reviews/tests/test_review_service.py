@@ -39,8 +39,9 @@ class ReviewServiceTests(TestCase):
         )
 
         cls.review = Review.objects.create(
-            protocol_id=cls.protocol.id,
-            reviewer_id=cls.reviewer.id,
+            tenant=cls.tenant,
+            protocol=cls.protocol,
+            reviewer=cls.reviewer,
             status=ReviewStatus.ASSIGNED,
             due_date=timezone.now() + timedelta(days=7),
         )

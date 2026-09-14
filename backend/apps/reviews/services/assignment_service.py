@@ -39,7 +39,8 @@ class ReviewAssignmentService:
         )
 
         review = Review.objects.create(
-            protocol_id=protocol_id,
+            tenant=protocol.tenant,
+            protocol=protocol,
             reviewer_id=reviewer_id,
             status=ReviewStatus.ASSIGNED,
         )
