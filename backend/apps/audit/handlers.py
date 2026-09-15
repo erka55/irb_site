@@ -34,6 +34,10 @@ class AuditEventHandler:
             "protocol",
             "protocol_id",
         ),
+        EventTypes.SUBMISSION_RESUBMITTED: (
+            "submission",
+            "submission_id",
+        ),
         EventTypes.REVIEW_ASSIGNED: (
             "review",
             "review_id",

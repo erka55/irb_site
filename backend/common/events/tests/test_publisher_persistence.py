@@ -7,6 +7,7 @@ from apps.tenants.models import Tenant
 from apps.users.models import User
 from common.events.protocol import ProtocolSubmitted
 from common.events.factory import get_event_publisher
+from common.events.submission import SubmissionResubmitted
 
 
 class EventPublisherPersistenceTests(TestCase):
@@ -22,6 +23,8 @@ class EventPublisherPersistenceTests(TestCase):
         )
 
         self.protocol_id = uuid4()
+
+        self.submission_id = uuid4()
 
     def test_publish_persists_event_as_audit_log(self):
         publisher = get_event_publisher()
@@ -78,6 +81,52 @@ class EventPublisherPersistenceTests(TestCase):
         self.assertEqual(
             audit_log.entity_id,
             self.protocol_id,
+        )
+
+        self.assertEqual(
+            audit_log.payload,
+            event.payload,
+        )
+
+    def test_publish_resubmitted_submission_persists_event_as_audit_log(self):
+        publisher = get_event_publisher()
+
+        event = SubmissionResubmitted(
+            tenant_id=self.tenant.id,
+            actor_id=str(self.actor.id),
+            submission_id=self.submission_id,
+            protocol_id=self.protocol_id,
+        )
+
+        publisher.publish(event)
+
+        audit_log = AuditLog.objects.get(
+            event_id=event.event_id,
+        )
+
+        self.assertEqual(
+            audit_log.tenant_id,
+            self.tenant.id,
+        )
+
+        self.assertEqual(
+            audit_log.actor_id,
+            self.actor.id,
+        )
+
+        self.assertEqual(
+            audit_log.action,
+            event.event_type,
+        )
+
+        self.assertEqual(
+            audit_log.entity_type,
+            "submission",
+        )
+
+        self.assertEqual(
+            audit_log.entity_id,
+            self.submission_id,
         )
 
         self.assertEqual(

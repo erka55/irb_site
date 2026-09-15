@@ -1,6 +1,10 @@
+from django.db import transaction
 from django.utils import timezone
+
 from apps.protocols.enums import SubmissionStatus
 from apps.protocols.models import ProtocolSubmission
+from common.events.factory import get_event_publisher
+from common.events.submission import SubmissionResubmitted
 
 
 class ProtocolSubmissionService:
@@ -54,8 +58,10 @@ class ProtocolSubmissionService:
         return submission
 
     @staticmethod
+    @transaction.atomic
     def resubmit(
         submission,
+        resubmitted_by,
     ):
         if submission.status != SubmissionStatus.INCOMPLETE:
             raise ValueError(
@@ -73,6 +79,15 @@ class ProtocolSubmissionService:
                 "updated_at",
             ],
         )
+
+        event = SubmissionResubmitted(
+            tenant_id=submission.tenant_id,
+            actor_id=resubmitted_by.id,
+            submission_id=submission.id,
+            protocol_id=submission.protocol_id,
+        )
+
+        get_event_publisher().publish(event)
 
         return submission
 
@@ -97,4 +112,3 @@ class ProtocolSubmissionService:
         )
 
         return submission
-    

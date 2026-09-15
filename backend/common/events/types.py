@@ -6,6 +6,9 @@ class EventTypes:
     PROTOCOL_REJECTED = "protocol.rejected"
     PROTOCOL_REVISIONS_REQUESTED = "protocol.revisions_requested"
 
+    # Submission Events
+    SUBMISSION_RESUBMITTED = "submission.resubmitted"
+
     # Review Events
     REVIEW_ASSIGNED = "review.assigned"
     REVIEW_SUBMITTED = "review.submitted"

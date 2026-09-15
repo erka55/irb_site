@@ -299,6 +299,7 @@ class ProtocolSubmissionServiceTests(TestCase):
 
         result = ProtocolSubmissionService.resubmit(
             submission=submission,
+            resubmitted_by=self.user,
         )
 
         self.assertEqual(
@@ -361,6 +362,7 @@ class ProtocolSubmissionServiceTests(TestCase):
         ):
             ProtocolSubmissionService.resubmit(
                 submission=submission,
+                resubmitted_by=self.user,
             )
 
     def test_close_rejects_non_incomplete_submission(self):

@@ -1,8 +1,8 @@
 from datetime import datetime
+from uuid import uuid4
 
 from django.test import TestCase
 from django.utils import timezone
-from uuid import uuid4
 
 from apps.protocols.enums import (
     PreliminaryCheckResult,
@@ -22,6 +22,7 @@ from apps.protocols.rules.completeness import (
 from apps.protocols.services.preliminary_check import (
     PreliminaryCheckService,
 )
+from apps.protocols.services.submission import ProtocolSubmissionService
 from apps.tenants.models import Tenant
 from apps.users.models import User
 
@@ -282,6 +283,41 @@ class PreliminaryCheckServiceTests(TestCase):
             PreliminaryCheckResult.COMPLETE,
         )
 
+    def test_resubmitted_submission_can_undergo_new_preliminary_check(self):
+        ProtocolSubmissionService.mark_incomplete(
+            self.submission,
+            reason="Missing required submission documents.",
+        )
+
+        ProtocolSubmissionService.resubmit(
+            self.submission,
+            resubmitted_by=self.user,
+        )
+
+        self.submission.refresh_from_db()
+
+        self.assertEqual(
+            self.submission.status,
+            SubmissionStatus.RECEIVED,
+        )
+
+        checked_at = timezone.make_aware(
+            datetime(2026, 9, 15, 10, 0),
+        )
+
+        preliminary_check = PreliminaryCheckService.check(
+            submission=self.submission,
+            checked_by=self.user,
+            checked_at=checked_at,
+            context=SubmissionCompletenessContext(),
+        )
+
+        self.assertIsNotNone(preliminary_check)
+        self.assertEqual(
+            preliminary_check.submission,
+            self.submission,
+        )
+
     def test_non_received_submission_cannot_be_checked(self):
         self.submission.status = SubmissionStatus.COMPLETE
         self.submission.save(update_fields=["status"])
@@ -383,4 +419,64 @@ class PreliminaryCheckServiceTests(TestCase):
         self.assertEqual(
             PreliminaryCheck.objects.count(),
             0,
+        )
+
+    def test_resubmission_preserves_previous_preliminary_check(self):
+        first_check = PreliminaryCheckService.check(
+            submission=self.submission,
+            checked_by=self.user,
+            checked_at=self.checked_at,
+            context=self.context,
+        )
+
+        self.assertEqual(
+            first_check.result,
+            PreliminaryCheckResult.INCOMPLETE,
+        )
+
+        ProtocolSubmissionService.resubmit(
+            self.submission,
+            resubmitted_by=self.user,
+        )
+
+        self.submission.refresh_from_db()
+
+        second_checked_at = timezone.make_aware(
+            datetime(2026, 9, 25, 10, 0),
+        )
+
+        second_check = PreliminaryCheckService.check(
+            submission=self.submission,
+            checked_by=self.user,
+            checked_at=second_checked_at,
+            context=self.context,
+        )
+
+        self.assertEqual(
+            second_check.result,
+            PreliminaryCheckResult.INCOMPLETE,
+        )
+
+        self.assertNotEqual(
+            first_check.pk,
+            second_check.pk,
+        )
+
+        self.assertEqual(
+            PreliminaryCheck.objects.filter(
+                submission=self.submission,
+            ).count(),
+            2,
+        )
+
+        first_check.refresh_from_db()
+
+        self.assertEqual(
+            first_check.result,
+            PreliminaryCheckResult.INCOMPLETE,
+        )
+
+        self.assertEqual(
+            first_check.checked_at,
+            self.checked_at,
         )
