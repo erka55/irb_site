@@ -16,6 +16,7 @@ class ReviewAssignmentService:
     def assign_reviewer(
         protocol_id,
         reviewer_id,
+        due_date,
         role=AssignmentRole.PRIMARY,
     ):
         existing = ReviewAssignment.objects.filter(
@@ -33,7 +34,8 @@ class ReviewAssignmentService:
         ).get(id=protocol_id)
 
         assignment = ReviewAssignment.objects.create(
-            protocol_id=protocol_id,
+            tenant=protocol.tenant,
+            protocol=protocol,
             reviewer_id=reviewer_id,
             role=role,
         )
@@ -43,6 +45,7 @@ class ReviewAssignmentService:
             protocol=protocol,
             reviewer_id=reviewer_id,
             status=ReviewStatus.ASSIGNED,
+            due_date=due_date,
         )
 
         publisher = get_event_publisher()
