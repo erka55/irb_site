@@ -20,6 +20,7 @@ from apps.users.models import Membership
 from common.events.review import ReviewCompleted
 from common.events.monitoring import ProgressReportSubmitted
 from common.events.incident import IncidentReportSubmitted
+from common.events.classification import ClassificationAssessed
 from common.events.types import EventTypes
 
 class AuditLogTests(TestCase):
@@ -334,6 +335,47 @@ class AuditEventHandlerTests(TestCase):
         self.assertEqual(
             log.entity_id,
             incident_report_id,
+        )
+
+    def test_handle_uses_classification_assessment_id_as_entity_id(self):
+        protocol_id = uuid4()
+        protocol_version_id = uuid4()
+        assessment_id = uuid4()
+
+        event = ClassificationAssessed(
+            tenant_id=self.tenant.id,
+            actor_id=self.user.id,
+            assessment_id=assessment_id,
+            protocol_id=protocol_id,
+            protocol_version_id=protocol_version_id,
+            classification="simplified",
+        )
+
+        log = AuditEventHandler.handle(event)
+
+        self.assertEqual(
+            log.entity_type,
+            "classification_assessment",
+        )
+        self.assertEqual(
+            log.entity_id,
+            assessment_id,
+        )
+        self.assertEqual(
+            log.action,
+            EventTypes.CLASSIFICATION_ASSESSED,
+        )
+        self.assertEqual(
+            log.tenant,
+            self.tenant,
+        )
+        self.assertEqual(
+            log.actor,
+            self.user,
+        )
+        self.assertEqual(
+            log.payload,
+            event.payload,
         )
 
 class DjangoEventStoreRepositoryTests(TestCase):

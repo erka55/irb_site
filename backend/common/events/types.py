@@ -8,6 +8,7 @@ class EventTypes:
 
     # Submission Events
     SUBMISSION_RESUBMITTED = "submission.resubmitted"
+    CLASSIFICATION_ASSESSED = "classification.assessed"
 
     # Review Events
     REVIEW_ASSIGNED = "review.assigned"

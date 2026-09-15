@@ -155,3 +155,63 @@ class ClassificationServiceTests(TestCase):
                 protocol_version=self.protocol_version,
             ).exists()
         )
+
+    @patch(
+        "apps.protocols.services.classification.get_event_publisher",
+    )
+    @patch("apps.protocols.services.classification.timezone.now")
+    def test_publishes_classification_assessed_event(
+        self,
+        mock_now,
+        mock_get_event_publisher,
+    ):
+        evaluated_at = timezone.make_aware(
+            datetime(2026, 9, 15, 10, 0, 0)
+        )
+        mock_now.return_value = evaluated_at
+
+        publisher = mock_get_event_publisher.return_value
+
+        assessment = ClassificationService.evaluate(
+            protocol_version=self.protocol_version,
+            evaluated_by=self.user,
+        )
+
+        publisher.publish.assert_called_once()
+
+        event = publisher.publish.call_args.args[0]
+
+        self.assertEqual(
+            event.event_type,
+            "classification.assessed",
+        )
+
+        self.assertEqual(
+            event.tenant_id,
+            str(self.tenant.id),
+        )
+
+        self.assertEqual(
+            event.actor_id,
+            str(self.user.id),
+        )
+
+        self.assertEqual(
+            event.payload["assessment_id"],
+            str(assessment.id),
+        )
+
+        self.assertEqual(
+            event.payload["protocol_id"],
+            str(self.protocol.id),
+        )
+
+        self.assertEqual(
+            event.payload["protocol_version_id"],
+            str(self.protocol_version.id),
+        )
+
+        self.assertEqual(
+            event.payload["classification"],
+            ReviewClassification.SIMPLIFIED,
+        )

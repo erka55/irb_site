@@ -38,6 +38,10 @@ class AuditEventHandler:
             "submission",
             "submission_id",
         ),
+        EventTypes.CLASSIFICATION_ASSESSED: (
+            "classification_assessment",
+            "assessment_id",
+        ),
         EventTypes.REVIEW_ASSIGNED: (
             "review",
             "review_id",
