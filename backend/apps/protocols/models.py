@@ -8,6 +8,7 @@ from .enums import (
     ProtocolStatus,
     RiskLevel,
     SubmissionStatus,
+    SubmissionDocumentType,
 )
 
 class Protocol(BaseModel):
@@ -152,3 +153,37 @@ class ProtocolSubmission(BaseModel):
     class Meta:
         db_table = "protocol_submissions"
         ordering = ["-submitted_at"]
+
+class SubmissionDocument(BaseModel):
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.PROTECT,
+        related_name="submission_documents",
+    )
+
+    submission = models.ForeignKey(
+        ProtocolSubmission,
+        on_delete=models.PROTECT,
+        related_name="documents",
+    )
+
+    document_type = models.CharField(
+        max_length=50,
+        choices=SubmissionDocumentType.choices,
+    )
+
+    file_reference = models.CharField(
+        max_length=500,
+    )
+
+    uploaded_by = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="uploaded_submission_documents",
+    )
+
+    uploaded_at = models.DateTimeField()
+
+    class Meta:
+        db_table = "submission_documents"
+        ordering = ["-uploaded_at"]

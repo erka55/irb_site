@@ -5,9 +5,14 @@ from django.test import TestCase
 from apps.protocols.enums import (
     ProtocolStatus,
     RiskLevel,
+    SubmissionDocumentType,
     SubmissionStatus,
 )
-from apps.protocols.models import Protocol, ProtocolSubmission
+from apps.protocols.models import (
+    Protocol,
+    ProtocolSubmission,
+    SubmissionDocument,
+)
 from apps.protocols.services.submission import ProtocolSubmissionService
 from apps.tenants.models import Tenant
 from apps.users.models import User
@@ -101,6 +106,98 @@ class ProtocolSubmissionModelTests(TestCase):
 
         self.assertIsNone(submission.closed_at)
 
+class SubmissionDocumentModelTests(TestCase):
+
+    def setUp(self):
+        self.tenant = Tenant.objects.create(
+            code="document-tenant",
+            name="Document Tenant",
+        )
+
+        self.user = User.objects.create_user(
+            email="document@test.com",
+            password="test-password",
+        )
+
+        self.protocol = Protocol.objects.create(
+            tenant=self.tenant,
+            title="Document Protocol",
+            protocol_number="DOCUMENT-001",
+            principal_investigator=self.user,
+            risk_level=RiskLevel.LOW,
+            status=ProtocolStatus.DRAFT,
+        )
+
+        self.submission = ProtocolSubmission.objects.create(
+            tenant=self.tenant,
+            protocol=self.protocol,
+            submitted_by=self.user,
+            submitted_at=datetime(
+                2026,
+                9,
+                15,
+                1,
+                0,
+                tzinfo=timezone.utc,
+            ),
+        )
+
+        self.uploaded_at = datetime(
+            2026,
+            9,
+            15,
+            2,
+            0,
+            tzinfo=timezone.utc,
+        )
+
+    def test_submission_document_preserves_relationships(self):
+        document = SubmissionDocument.objects.create(
+            tenant=self.tenant,
+            submission=self.submission,
+            document_type=SubmissionDocumentType.METHODOLOGY,
+            file_reference="submissions/document-001/methodology.pdf",
+            uploaded_by=self.user,
+            uploaded_at=self.uploaded_at,
+        )
+
+        self.assertEqual(document.tenant, self.tenant)
+        self.assertEqual(document.submission, self.submission)
+        self.assertEqual(document.uploaded_by, self.user)
+
+    def test_submission_document_preserves_document_type_and_file_reference(self):
+        document = SubmissionDocument.objects.create(
+            tenant=self.tenant,
+            submission=self.submission,
+            document_type=SubmissionDocumentType.RISK_ASSESSMENT,
+            file_reference="submissions/document-001/risk-assessment.pdf",
+            uploaded_by=self.user,
+            uploaded_at=self.uploaded_at,
+        )
+
+        self.assertEqual(
+            document.document_type,
+            SubmissionDocumentType.RISK_ASSESSMENT,
+        )
+        self.assertEqual(
+            document.file_reference,
+            "submissions/document-001/risk-assessment.pdf",
+        )
+
+    def test_submission_document_preserves_uploaded_at(self):
+        document = SubmissionDocument.objects.create(
+            tenant=self.tenant,
+            submission=self.submission,
+            document_type=SubmissionDocumentType.INFORMED_CONSENT,
+            file_reference="submissions/document-001/consent.pdf",
+            uploaded_by=self.user,
+            uploaded_at=self.uploaded_at,
+        )
+
+        self.assertEqual(
+            document.uploaded_at,
+            self.uploaded_at,
+        )
 
 class ProtocolSubmissionServiceTests(TestCase):
 
