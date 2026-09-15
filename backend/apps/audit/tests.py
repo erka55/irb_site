@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from django.test import TestCase
@@ -22,6 +22,9 @@ from common.events.monitoring import ProgressReportSubmitted
 from common.events.incident import IncidentReportSubmitted
 from common.events.classification import ClassificationAssessed
 from common.events.types import EventTypes
+from apps.protocols.models import ClassificationAssessment, Protocol, ProtocolVersion
+from apps.reviews.models import Review
+from apps.monitoring.models import IncidentReport, MonitoringPlan, ProgressReport
 
 class AuditLogTests(TestCase):
 
@@ -167,8 +170,85 @@ class AuditEventHandlerTests(TestCase):
             password="test-password",
         )
 
+        self.other_tenant = Tenant.objects.create(
+            code="other-tenant",
+            name="Other Tenant",
+        )
+
+        self.other_user = User.objects.create_user(
+            email="other@test.com",
+            password="test-password",
+        )
+
+        self.protocol = Protocol.objects.create(
+            tenant=self.tenant,
+            title="Test Protocol",
+            protocol_number="TEST-001",
+            principal_investigator=self.user,
+            risk_level="low",
+            status="draft",
+            summary="Audit handler test protocol",
+        )
+
+        self.protocol_version = ProtocolVersion.objects.create(
+            protocol=self.protocol,
+            version_number="1.0",
+            snapshot={
+                "risk_level": "low",
+                "uses_personal_data": False,
+                "data_is_anonymized": False,
+                "involves_vulnerable_group": False,
+                "is_ai_research": False,
+                "is_cyber_research": False,
+            },
+            created_by=self.user,
+        )
+
+        self.classification_assessment = ClassificationAssessment.objects.create(
+            tenant=self.tenant,
+            protocol=self.protocol,
+            protocol_version=self.protocol_version,
+            classification="exempt",
+            evaluated_at=datetime.now(UTC),
+            evaluated_by=self.user,
+            rationale="Audit handler test classification assessment",
+        )
+
+        self.review = Review.objects.create(
+            tenant=self.tenant,
+            protocol=self.protocol,
+            reviewer=self.user,
+            due_date=datetime.now(UTC) + timedelta(days=7),
+        )
+
+        self.monitoring_plan = MonitoringPlan.objects.create(
+            tenant=self.tenant,
+            protocol=self.protocol,
+            frequency="6_MONTHS",
+        )
+
+        self.progress_report = ProgressReport.objects.create(
+            tenant=self.tenant,
+            protocol=self.protocol,
+            monitoring_plan=self.monitoring_plan,
+            submitted_by=self.user,
+            report_type="PERIODIC",
+            period_start=datetime.now(UTC),
+            period_end=datetime.now(UTC) + timedelta(days=1),
+        )
+
+        self.incident_report = IncidentReport.objects.create(
+            tenant=self.tenant,
+            protocol=self.protocol,
+            monitoring_plan=self.monitoring_plan,
+            reported_by=self.user,
+            incident_type="PARTICIPANT_SAFETY",
+            occurred_at=datetime.now(UTC),
+            description="Audit handler test incident report",
+        )
+
     def test_handle_creates_audit_log(self):
-        protocol_id = uuid4()
+        protocol_id = self.protocol.id
 
         event = ProtocolSubmitted(
             tenant_id=self.tenant.id,
@@ -213,7 +293,7 @@ class AuditEventHandlerTests(TestCase):
             AuditEventHandler.handle(event)
 
     def test_handle_preserves_event_metadata(self):
-        protocol_id = uuid4()
+        protocol_id = self.protocol.id
         event_id = str(uuid4())
         occurred_at = datetime(
             2026,
@@ -245,7 +325,7 @@ class AuditEventHandlerTests(TestCase):
         )
 
     def test_handle_preserves_actor_tenant_and_payload(self):
-        protocol_id = uuid4()
+        protocol_id = self.protocol.id
 
         event = ProtocolSubmitted(
             tenant_id=self.tenant.id,
@@ -272,7 +352,7 @@ class AuditEventHandlerTests(TestCase):
 
     def test_handle_uses_review_id_as_entity_id(self):
         protocol_id = uuid4()
-        review_id = uuid4()
+        review_id = self.review.id
 
         event = ReviewCompleted(
             tenant_id=self.tenant.id,
@@ -295,7 +375,7 @@ class AuditEventHandlerTests(TestCase):
 
     def test_handle_uses_progress_report_id_as_entity_id(self):
         protocol_id = uuid4()
-        progress_report_id = uuid4()
+        progress_report_id = self.progress_report.id
 
         event = ProgressReportSubmitted(
             tenant_id=self.tenant.id,
@@ -317,7 +397,7 @@ class AuditEventHandlerTests(TestCase):
 
     def test_handle_uses_incident_report_id_as_entity_id(self):
         protocol_id = uuid4()
-        incident_report_id = uuid4()
+        incident_report_id = self.incident_report.id
 
         event = IncidentReportSubmitted(
             tenant_id=self.tenant.id,
@@ -340,7 +420,7 @@ class AuditEventHandlerTests(TestCase):
     def test_handle_uses_classification_assessment_id_as_entity_id(self):
         protocol_id = uuid4()
         protocol_version_id = uuid4()
-        assessment_id = uuid4()
+        assessment_id = self.classification_assessment.id
 
         event = ClassificationAssessed(
             tenant_id=self.tenant.id,
@@ -378,6 +458,26 @@ class AuditEventHandlerTests(TestCase):
             event.payload,
         )
 
+    def test_handle_rejects_cross_tenant_entity(self):
+        protocol = Protocol.objects.create(
+            tenant=self.other_tenant,
+            title="Other Tenant Protocol",
+            protocol_number="OTHER-001",
+            principal_investigator=self.other_user,
+            risk_level="low",
+            status="draft",
+            summary="Cross-tenant audit test",
+        )
+
+        event = ProtocolSubmitted(
+            tenant_id=self.tenant.id,
+            actor_id=self.user.id,
+            protocol_id=protocol.id,
+        )
+
+        with self.assertRaises(ValueError):
+            AuditEventHandler.handle(event)
+
 class DjangoEventStoreRepositoryTests(TestCase):
 
     def setUp(self):
@@ -391,8 +491,18 @@ class DjangoEventStoreRepositoryTests(TestCase):
             password="test-password",
         )
 
+        self.protocol = Protocol.objects.create(
+            tenant=self.tenant,
+            title="Event Store Test Protocol",
+            protocol_number="EVENT-STORE-001",
+            principal_investigator=self.user,
+            risk_level="low",
+            status="draft",
+            summary="Event store repository test protocol",
+        )
+
     def test_append_persists_event(self):
-        protocol_id = uuid4()
+        protocol_id = self.protocol.id
 
         event = ProtocolSubmitted(
             tenant_id=self.tenant.id,
@@ -437,7 +547,7 @@ class DjangoEventStoreRepositoryTests(TestCase):
         )
 
     def test_append_preserves_event_metadata(self):
-        protocol_id = uuid4()
+        protocol_id = self.protocol.id
 
         event = ProtocolSubmitted(
             tenant_id=self.tenant.id,
@@ -460,7 +570,7 @@ class DjangoEventStoreRepositoryTests(TestCase):
         )
 
     def test_append_rejects_duplicate_event_id(self):
-        protocol_id = uuid4()
+        protocol_id = self.protocol.id
 
         event = ProtocolSubmitted(
             tenant_id=self.tenant.id,

@@ -1,6 +1,12 @@
 from uuid import UUID
 
 from apps.audit.services import log_event
+from apps.protocols.models import ClassificationAssessment, Protocol
+from apps.protocols.models import ProtocolSubmission
+from apps.reviews.models import Review
+from apps.meetings.models import Meeting
+from apps.decision.models import Decision
+from apps.monitoring.models import ProgressReport, IncidentReport
 from apps.tenants.models import Tenant
 from apps.users.models import User
 from common.events.types import EventTypes
@@ -100,6 +106,37 @@ class AuditEventHandler:
         ),
     }
 
+    ENTITY_MODELS = {
+        "protocol": Protocol,
+        "submission": ProtocolSubmission,
+        "classification_assessment": ClassificationAssessment,
+        "review": Review,
+        "meeting": Meeting,
+        "decision": Decision,
+        "progress_report": ProgressReport,
+        "incident_report": IncidentReport,
+    }
+
+    @classmethod
+    def _validate_entity_tenant(cls, *, entity_type, entity_id, tenant):
+        model = cls.ENTITY_MODELS[entity_type]
+
+        entity = model.objects.filter(
+            id=entity_id
+        ).first()
+
+        if entity is None:
+            raise ValueError(
+                f"{entity_type} not found: {entity_id}"
+            )
+
+        if entity.tenant_id != tenant.id:
+            raise ValueError(
+                f"{entity_type} belongs to a different tenant."
+            )
+
+        return entity
+
     @classmethod
     def handle(cls, event):
         if not event.tenant_id:
@@ -134,6 +171,12 @@ class AuditEventHandler:
             )
 
         entity_id = UUID(str(entity_id))
+
+        cls._validate_entity_tenant(
+            entity_type=entity_type,
+            entity_id=entity_id,
+            tenant=tenant,
+        )
 
         return log_event(
             action=event.event_type,
