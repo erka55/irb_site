@@ -1,5 +1,6 @@
 from django.db import models
 
+
 class RiskLevel(models.TextChoices):
     LOW = "low", "Low"
     MEDIUM = "medium", "Medium"
@@ -15,11 +16,18 @@ class ProtocolStatus(models.TextChoices):
     REVISIONS_REQUIRED = "revisions_required", "Revisions Required"
     ARCHIVED = "archived", "Archived"
 
+
 class SubmissionStatus(models.TextChoices):
     RECEIVED = "received", "Received"
     INCOMPLETE = "incomplete", "Incomplete"
     COMPLETE = "complete", "Complete"
     CLOSED = "closed", "Closed"
+
+
+class PreliminaryCheckResult(models.TextChoices):
+    INCOMPLETE = "incomplete", "Incomplete"
+    COMPLETE = "complete", "Complete"
+
 
 class SubmissionDocumentType(models.TextChoices):
     RESEARCH_INTRODUCTION = "research_introduction", "Research Introduction"

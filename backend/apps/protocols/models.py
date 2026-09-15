@@ -5,6 +5,7 @@ from apps.tenants.models import Tenant
 from apps.users.models import User
 
 from .enums import (
+    PreliminaryCheckResult,
     ProtocolStatus,
     RiskLevel,
     SubmissionStatus,
@@ -187,3 +188,44 @@ class SubmissionDocument(BaseModel):
     class Meta:
         db_table = "submission_documents"
         ordering = ["-uploaded_at"]
+
+class PreliminaryCheck(BaseModel):
+
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.PROTECT,
+        related_name="preliminary_checks",
+    )
+
+    submission = models.ForeignKey(
+        ProtocolSubmission,
+        on_delete=models.PROTECT,
+        related_name="preliminary_checks",
+    )
+
+    checked_by = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="preliminary_checks",
+    )
+
+    checked_at = models.DateTimeField()
+
+    result = models.CharField(
+        max_length=20,
+        choices=PreliminaryCheckResult.choices,
+    )
+
+    missing_document_types = models.JSONField(
+        default=list,
+        blank=True,
+    )
+
+    correction_due_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        db_table = "preliminary_checks"
+        ordering = ["-checked_at"]
