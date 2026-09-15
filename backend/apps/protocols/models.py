@@ -7,6 +7,7 @@ from apps.users.models import User
 from .enums import (
     ProtocolStatus,
     RiskLevel,
+    SubmissionStatus,
 )
 
 class Protocol(BaseModel):
@@ -110,3 +111,44 @@ class ProtocolStatusHistory(BaseModel):
     class Meta:
         db_table = "protocol_status_history"
         ordering = ["-created_at"]
+
+class ProtocolSubmission(BaseModel):
+
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.PROTECT,
+        related_name="protocol_submissions",
+    )
+
+    protocol = models.ForeignKey(
+        Protocol,
+        on_delete=models.PROTECT,
+        related_name="submissions",
+    )
+
+    submitted_by = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="protocol_submissions",
+    )
+
+    submitted_at = models.DateTimeField()
+
+    status = models.CharField(
+        max_length=30,
+        choices=SubmissionStatus.choices,
+        default=SubmissionStatus.RECEIVED,
+    )
+
+    incomplete_reason = models.TextField(
+        blank=True,
+    )
+
+    closed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        db_table = "protocol_submissions"
+        ordering = ["-submitted_at"]

@@ -14,3 +14,9 @@ class ProtocolStatus(models.TextChoices):
     REJECTED = "rejected", "Rejected"
     REVISIONS_REQUIRED = "revisions_required", "Revisions Required"
     ARCHIVED = "archived", "Archived"
+
+class SubmissionStatus(models.TextChoices):
+    RECEIVED = "received", "Received"
+    INCOMPLETE = "incomplete", "Incomplete"
+    COMPLETE = "complete", "Complete"
+    CLOSED = "closed", "Closed"
