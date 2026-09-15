@@ -20,3 +20,14 @@ class SubmissionStatus(models.TextChoices):
     INCOMPLETE = "incomplete", "Incomplete"
     COMPLETE = "complete", "Complete"
     CLOSED = "closed", "Closed"
+
+class SubmissionDocumentType(models.TextChoices):
+    RESEARCH_INTRODUCTION = "research_introduction", "Research Introduction"
+    METHODOLOGY = "methodology", "Methodology"
+    RISK_ASSESSMENT = "risk_assessment", "Risk Assessment"
+    INFORMED_CONSENT = "informed_consent", "Informed Consent"
+    QUESTIONNAIRE = "questionnaire", "Questionnaire"
+    DATA_PROTECTION_PLAN = "data_protection_plan", "Data Protection Plan"
+    AI_CYBER_ASSESSMENT = "ai_cyber_assessment", "AI/Cyber Assessment"
+    PI_SIGNATURE = "pi_signature", "PI Signature"
+    OTHER = "other", "Other"
