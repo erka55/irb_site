@@ -7,6 +7,12 @@ class RiskLevel(models.TextChoices):
     HIGH = "high", "High"
 
 
+class ReviewClassification(models.TextChoices):
+    EXEMPT = "exempt", "Exempt"
+    SIMPLIFIED = "simplified", "Simplified"
+    FULL = "full", "Full Review"
+
+
 class ProtocolStatus(models.TextChoices):
     DRAFT = "draft", "Draft"
     SUBMITTED = "submitted", "Submitted"

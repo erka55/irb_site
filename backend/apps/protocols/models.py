@@ -7,10 +7,12 @@ from apps.users.models import User
 from .enums import (
     PreliminaryCheckResult,
     ProtocolStatus,
+    ReviewClassification,
     RiskLevel,
     SubmissionStatus,
     SubmissionDocumentType,
 )
+
 
 class Protocol(BaseModel):
 
@@ -105,7 +107,7 @@ class ProtocolStatusHistory(BaseModel):
         on_delete=models.PROTECT,
         related_name="protocol_status_changes",
     )
-    
+
     reason = models.TextField(
         blank=True,
     )
@@ -113,6 +115,7 @@ class ProtocolStatusHistory(BaseModel):
     class Meta:
         db_table = "protocol_status_history"
         ordering = ["-created_at"]
+
 
 class ProtocolSubmission(BaseModel):
 
@@ -155,7 +158,9 @@ class ProtocolSubmission(BaseModel):
         db_table = "protocol_submissions"
         ordering = ["-submitted_at"]
 
+
 class SubmissionDocument(BaseModel):
+
     tenant = models.ForeignKey(
         Tenant,
         on_delete=models.PROTECT,
@@ -188,6 +193,7 @@ class SubmissionDocument(BaseModel):
     class Meta:
         db_table = "submission_documents"
         ordering = ["-uploaded_at"]
+
 
 class PreliminaryCheck(BaseModel):
 
@@ -229,3 +235,45 @@ class PreliminaryCheck(BaseModel):
     class Meta:
         db_table = "preliminary_checks"
         ordering = ["-checked_at"]
+
+
+class ClassificationAssessment(BaseModel):
+
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.PROTECT,
+        related_name="classification_assessments",
+    )
+
+    protocol = models.ForeignKey(
+        Protocol,
+        on_delete=models.PROTECT,
+        related_name="classification_assessments",
+    )
+
+    protocol_version = models.ForeignKey(
+        ProtocolVersion,
+        on_delete=models.PROTECT,
+        related_name="classification_assessments",
+    )
+
+    classification = models.CharField(
+        max_length=20,
+        choices=ReviewClassification.choices,
+    )
+
+    evaluated_at = models.DateTimeField()
+
+    evaluated_by = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="classification_assessments",
+    )
+
+    rationale = models.TextField()
+
+    class Meta:
+        db_table = "classification_assessments"
+        ordering = ["-evaluated_at"]
