@@ -653,10 +653,20 @@ class AuditLogQueryServiceTests(TestCase):
             occurred_at=self.time_b,
         )
 
-    def test_list_logs_returns_all_logs(self):
-        logs = AuditLogQueryService.list_logs()
+    def test_list_logs_requires_tenant_scope(self):
+        with self.assertRaises(TypeError):
+            AuditLogQueryService.list_logs()
 
-        self.assertEqual(logs.count(), 2)
+    def test_list_logs_returns_logs_within_tenant_scope(self):
+        logs = AuditLogQueryService.list_logs(
+            tenant_id=self.tenant_a.id,
+        )
+
+        self.assertEqual(logs.count(), 1)
+        self.assertEqual(
+            logs.first().tenant,
+            self.tenant_a,
+        )
 
     def test_filter_by_tenant(self):
         logs = AuditLogQueryService.list_logs(
@@ -681,6 +691,7 @@ class AuditLogQueryServiceTests(TestCase):
 
     def test_filter_by_actor(self):
         logs = AuditLogQueryService.list_logs(
+            tenant_id=self.tenant_b.id,
             actor_id=self.user_b.id,
         )
 
@@ -692,6 +703,7 @@ class AuditLogQueryServiceTests(TestCase):
 
     def test_filter_by_action(self):
         logs = AuditLogQueryService.list_logs(
+            tenant_id=self.tenant_b.id,
             action="decision.published",
         )
 
@@ -703,6 +715,7 @@ class AuditLogQueryServiceTests(TestCase):
 
     def test_filter_by_entity(self):
         logs = AuditLogQueryService.list_logs(
+            tenant_id=self.tenant_a.id,
             entity_type="protocol",
             entity_id=self.entity_a,
         )
@@ -715,6 +728,7 @@ class AuditLogQueryServiceTests(TestCase):
 
     def test_filter_by_event_id(self):
         logs = AuditLogQueryService.list_logs(
+            tenant_id=self.tenant_b.id,
             event_id=self.event_b,
         )
 
@@ -726,6 +740,7 @@ class AuditLogQueryServiceTests(TestCase):
 
     def test_filter_by_occurred_at_range(self):
         logs = AuditLogQueryService.list_logs(
+            tenant_id=self.tenant_b.id,
             occurred_from=datetime(
                 2026,
                 8,
@@ -749,6 +764,7 @@ class AuditLogQueryServiceTests(TestCase):
             logs.first().event_id,
             self.event_b,
         )
+
 class AuditLogAccessServiceTests(TestCase):
 
     def setUp(self):

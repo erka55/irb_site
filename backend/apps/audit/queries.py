@@ -9,12 +9,14 @@ from .models import AuditLog
 class AuditLogQueryService:
     """
     Read-only query service for immutable audit logs.
+
+    Tenant scope is mandatory for every audit log query.
     """
 
     @staticmethod
     def list_logs(
         *,
-        tenant_id: UUID | str | None = None,
+        tenant_id: UUID | str,
         actor_id: UUID | str | None = None,
         action: str | None = None,
         entity_type: str | None = None,
@@ -24,12 +26,14 @@ class AuditLogQueryService:
         occurred_to: datetime | None = None,
     ) -> QuerySet[AuditLog]:
 
-        queryset = AuditLog.objects.all()
-
-        if tenant_id is not None:
-            queryset = queryset.filter(
-                tenant_id=tenant_id
+        if tenant_id is None:
+            raise ValueError(
+                "tenant_id is required for audit log queries."
             )
+
+        queryset = AuditLog.objects.filter(
+            tenant_id=tenant_id,
+        )
 
         if actor_id is not None:
             queryset = queryset.filter(
