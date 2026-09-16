@@ -1116,6 +1116,19 @@ class AuditLogAPIAccessTests(APITestCase):
             405,
         )
 
+    def test_user_cannot_access_audit_log_detail_from_different_tenant(self):
+        self._authenticate(self.chair)
+
+        response = self.client.get(
+            f"/api/audit/{self.log_b.id}/",
+            HTTP_X_TENANT_ID=str(self.tenant_a.id),
+        )
+
+        self.assertEqual(
+            response.status_code,
+            404,
+        )
+
     def test_audit_log_detail_is_read_only(self):
         self._authenticate(self.chair)
 
