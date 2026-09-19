@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'apps.notifications',
     'apps.meetings',
     'apps.monitoring',
+    'apps.compliance',
 ]
 
 MIDDLEWARE = [
