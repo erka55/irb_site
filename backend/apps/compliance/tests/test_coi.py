@@ -267,3 +267,28 @@ class ConflictOfInterestDeclarationServiceTests(TestCase):
                 declarant=self.declarant,
             )
         )
+
+    def test_can_participate_in_vote_returns_false_with_conflict(self):
+        ConflictOfInterestDeclarationService.declare(
+            tenant=self.tenant,
+            protocol=self.protocol,
+            declarant=self.declarant,
+            conflict_types=["financial"],
+            description="Financial relationship with the research sponsor.",
+            declared_at=timezone.now(),
+        )
+
+        self.assertFalse(
+            ConflictOfInterestDeclarationService.can_participate_in_vote(
+                protocol=self.protocol,
+                declarant=self.declarant,
+            )
+        )
+
+    def test_can_participate_in_vote_returns_true_without_conflict(self):
+        self.assertTrue(
+            ConflictOfInterestDeclarationService.can_participate_in_vote(
+                protocol=self.protocol,
+                declarant=self.declarant,
+            )
+        )

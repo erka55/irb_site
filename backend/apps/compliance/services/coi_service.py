@@ -61,3 +61,14 @@ class ConflictOfInterestDeclarationService:
             protocol_id=protocol.id,
             declarant_id=declarant.id,
         ).exists()
+
+    @staticmethod
+    def can_participate_in_vote(
+        *,
+        protocol,
+        declarant,
+    ) -> bool:
+        return not ConflictOfInterestDeclarationService.has_conflict(
+            protocol=protocol,
+            declarant=declarant,
+        )
