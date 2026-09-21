@@ -1,12 +1,15 @@
 from django.db import transaction
 
+from apps.compliance.services.coi_service import (
+    ConflictOfInterestDeclarationService,
+)
+
 from apps.meetings.models import (
     MeetingAgenda,
     MeetingParticipant,
     MeetingVote,
     VoteChoice,
 )
-
 
 class VotingService:
 
@@ -18,6 +21,14 @@ class VotingService:
         vote: VoteChoice,
         comment: str = "",
     ):
+        if not ConflictOfInterestDeclarationService.can_participate_in_vote(
+            protocol=agenda.protocol,
+            declarant=participant.user,
+        ):
+            raise ValueError(
+                "Participant with a conflict of interest cannot vote."
+            )
+
         meeting_vote, created = MeetingVote.objects.get_or_create(
             agenda=agenda,
             participant=participant,

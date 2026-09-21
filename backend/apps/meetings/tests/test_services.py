@@ -26,8 +26,8 @@ from apps.protocols.models import (
 )
 
 from apps.tenants.models import Tenant
-from apps.users.models import User
-
+from apps.users.models import Membership, User
+from apps.core.models import RoleChoices
 
 class MeetingServiceTest(TestCase):
 
@@ -244,6 +244,13 @@ class VotingServiceTest(TestCase):
             password="password123",
         )
 
+        Membership.objects.create(
+            user=self.reviewer,
+            tenant=self.tenant,
+            role=RoleChoices.REVIEWER,
+            is_active=True,
+        )
+
         self.meeting = Meeting.objects.create(
             tenant=self.tenant,
             title="IRB Meeting",
@@ -282,6 +289,37 @@ class VotingServiceTest(TestCase):
 
         self.assertEqual(vote.vote, VoteChoice.APPROVE)
         self.assertEqual(vote.participant, self.participant)
+
+    def test_cast_vote_rejects_participant_with_conflict_of_interest(self):
+        from apps.compliance.services.coi_service import (
+            ConflictOfInterestDeclarationService,
+        )
+
+        ConflictOfInterestDeclarationService.declare(
+            tenant=self.tenant,
+            protocol=self.protocol,
+            declarant=self.reviewer,
+            conflict_types=["financial"],
+            description="Financial relationship with the research sponsor.",
+            declared_at=timezone.now(),
+        )
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "Participant with a conflict of interest cannot vote.",
+        ):
+            VotingService.cast_vote(
+                agenda=self.agenda,
+                participant=self.participant,
+                vote=VoteChoice.APPROVE,
+            )
+
+        self.assertFalse(
+            MeetingVote.objects.filter(
+                agenda=self.agenda,
+                participant=self.participant,
+            ).exists()
+        )
 
     def test_update_vote(self):
         vote = VotingService.cast_vote(
