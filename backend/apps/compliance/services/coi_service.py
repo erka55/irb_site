@@ -49,3 +49,15 @@ class ConflictOfInterestDeclarationService:
             declared_at=declared_at,
             signature_reference=signature_reference,
         )
+
+    @staticmethod
+    def has_conflict(
+        *,
+        protocol,
+        declarant,
+    ) -> bool:
+        return ConflictOfInterestDeclaration.objects.filter(
+            tenant_id=protocol.tenant_id,
+            protocol_id=protocol.id,
+            declarant_id=declarant.id,
+        ).exists()

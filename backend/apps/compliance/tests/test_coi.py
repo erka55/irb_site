@@ -218,3 +218,52 @@ class ConflictOfInterestDeclarationServiceTests(TestCase):
             declaration.description,
             "Conflict description.",
         )
+
+    def test_has_conflict_returns_true_for_declared_protocol_and_user(self):
+        ConflictOfInterestDeclarationService.declare(
+            tenant=self.tenant,
+            protocol=self.protocol,
+            declarant=self.declarant,
+            conflict_types=["financial"],
+            description="Financial relationship with the research sponsor.",
+            declared_at=timezone.now(),
+        )
+
+        self.assertTrue(
+            ConflictOfInterestDeclarationService.has_conflict(
+                protocol=self.protocol,
+                declarant=self.declarant,
+            )
+        )
+
+    def test_has_conflict_returns_false_without_declaration(self):
+        self.assertFalse(
+            ConflictOfInterestDeclarationService.has_conflict(
+                protocol=self.protocol,
+                declarant=self.declarant,
+            )
+        )
+
+    def test_has_conflict_is_scoped_to_protocol_and_declarant(self):
+        ConflictOfInterestDeclarationService.declare(
+            tenant=self.tenant,
+            protocol=self.protocol,
+            declarant=self.declarant,
+            conflict_types=["financial"],
+            description="Financial relationship with the research sponsor.",
+            declared_at=timezone.now(),
+        )
+
+        self.assertFalse(
+            ConflictOfInterestDeclarationService.has_conflict(
+                protocol=self.protocol,
+                declarant=self.other_user,
+            )
+        )
+
+        self.assertFalse(
+            ConflictOfInterestDeclarationService.has_conflict(
+                protocol=self.other_protocol,
+                declarant=self.declarant,
+            )
+        )
