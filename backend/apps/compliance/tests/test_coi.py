@@ -1,15 +1,25 @@
-from datetime import timedelta
-
 from django.test import TestCase
 from django.utils import timezone
 
-from apps.compliance.models import ConflictOfInterestDeclaration
+from apps.compliance.models import (
+    ConflictOfInterestDeclaration,
+    ConflictOfInterestRecusal,
+)
 from apps.compliance.services.coi_service import (
     ConflictOfInterestDeclarationService,
 )
 from apps.core.models import RoleChoices
-from apps.protocols.models import Protocol
+from apps.meetings.models import (
+    AttendanceStatus,
+    Meeting,
+    MeetingAgenda,
+    MeetingParticipant,
+    MeetingStatus,
+    MeetingType,
+    ParticipantRole,
+)
 from apps.protocols.enums import RiskLevel
+from apps.protocols.models import Protocol
 from apps.tenants.models import Tenant
 from apps.users.models import Membership, User
 
@@ -60,6 +70,28 @@ class ConflictOfInterestDeclarationServiceTests(TestCase):
             principal_investigator=self.other_user,
             risk_level=RiskLevel.LOW,
             summary="Other protocol summary",
+        )
+
+        self.meeting = Meeting.objects.create(
+            tenant=self.tenant,
+            title="Test IRB Meeting",
+            meeting_type=MeetingType.REGULAR,
+            status=MeetingStatus.SCHEDULED,
+            meeting_date=timezone.now(),
+            chair=self.declarant,
+        )
+
+        self.participant = MeetingParticipant.objects.create(
+            meeting=self.meeting,
+            user=self.declarant,
+            role=ParticipantRole.REVIEWER,
+            attendance_status=AttendanceStatus.PRESENT,
+        )
+
+        self.agenda = MeetingAgenda.objects.create(
+            meeting=self.meeting,
+            protocol=self.protocol,
+            order=1,
         )
 
     def test_declare_creates_declaration(self):
@@ -291,4 +323,41 @@ class ConflictOfInterestDeclarationServiceTests(TestCase):
                 protocol=self.protocol,
                 declarant=self.declarant,
             )
+        )
+
+    def test_create_recusal(self):
+        declaration = ConflictOfInterestDeclarationService.declare(
+            tenant=self.tenant,
+            protocol=self.protocol,
+            declarant=self.declarant,
+            conflict_types=["financial"],
+            description="Financial relationship with the research sponsor.",
+            declared_at=timezone.now(),
+        )
+
+        recused_at = timezone.now()
+
+        recusal = ConflictOfInterestRecusal.objects.create(
+            tenant=self.tenant,
+            declaration=declaration,
+            agenda=self.agenda,
+            participant=self.participant,
+            recused_at=recused_at,
+            note="Participant left the meeting during discussion.",
+        )
+
+        self.assertIsNotNone(recusal.pk)
+        self.assertEqual(recusal.tenant, self.tenant)
+        self.assertEqual(recusal.declaration, declaration)
+        self.assertEqual(recusal.agenda, self.agenda)
+        self.assertEqual(recusal.participant, self.participant)
+        self.assertEqual(recusal.recused_at, recused_at)
+        self.assertEqual(
+            recusal.note,
+            "Participant left the meeting during discussion.",
+        )
+
+        self.assertEqual(
+            ConflictOfInterestRecusal.objects.count(),
+            1,
         )
