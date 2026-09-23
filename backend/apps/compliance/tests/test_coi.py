@@ -1,3 +1,5 @@
+from django.db import IntegrityError, transaction
+from django.db import IntegrityError
 from django.test import TestCase
 from django.utils import timezone
 
@@ -7,6 +9,7 @@ from apps.compliance.models import (
 )
 from apps.compliance.services.coi_service import (
     ConflictOfInterestDeclarationService,
+    ConflictOfInterestRecusalService,
 )
 from apps.core.models import RoleChoices
 from apps.meetings.models import (
@@ -361,3 +364,304 @@ class ConflictOfInterestDeclarationServiceTests(TestCase):
             ConflictOfInterestRecusal.objects.count(),
             1,
         )
+
+
+class ConflictOfInterestRecusalServiceTests(TestCase):
+
+    def setUp(self):
+        self.tenant = Tenant.objects.create(
+            code="T101",
+            name="Recusal Test Tenant",
+        )
+
+        self.other_tenant = Tenant.objects.create(
+            code="T102",
+            name="Other Recusal Tenant",
+        )
+
+        self.declarant = User.objects.create_user(
+            email="recusal-declarant@example.com",
+            password="test-password",
+        )
+
+        self.other_user = User.objects.create_user(
+            email="recusal-other@example.com",
+            password="test-password",
+        )
+
+        Membership.objects.create(
+            user=self.declarant,
+            tenant=self.tenant,
+            role=RoleChoices.REVIEWER,
+            is_active=True,
+        )
+
+        Membership.objects.create(
+            user=self.other_user,
+            tenant=self.tenant,
+            role=RoleChoices.REVIEWER,
+            is_active=True,
+        )
+
+        self.protocol = Protocol.objects.create(
+            tenant=self.tenant,
+            title="Recusal Protocol",
+            protocol_number="IRB-RECUSAL-001",
+            principal_investigator=self.declarant,
+            risk_level=RiskLevel.LOW,
+            summary="Recusal test protocol",
+        )
+
+        self.other_protocol = Protocol.objects.create(
+            tenant=self.tenant,
+            title="Other Recusal Protocol",
+            protocol_number="IRB-RECUSAL-002",
+            principal_investigator=self.other_user,
+            risk_level=RiskLevel.LOW,
+            summary="Other recusal test protocol",
+        )
+
+        self.other_tenant_protocol = Protocol.objects.create(
+            tenant=self.other_tenant,
+            title="Other Tenant Protocol",
+            protocol_number="IRB-RECUSAL-003",
+            principal_investigator=self.other_user,
+            risk_level=RiskLevel.LOW,
+            summary="Other tenant protocol",
+        )
+
+        self.meeting = Meeting.objects.create(
+            tenant=self.tenant,
+            title="Recusal Test Meeting",
+            meeting_type=MeetingType.REGULAR,
+            status=MeetingStatus.IN_PROGRESS,
+            meeting_date=timezone.now(),
+            chair=self.declarant,
+        )
+
+        self.other_meeting = Meeting.objects.create(
+            tenant=self.tenant,
+            title="Other Recusal Meeting",
+            meeting_type=MeetingType.REGULAR,
+            status=MeetingStatus.IN_PROGRESS,
+            meeting_date=timezone.now(),
+            chair=self.declarant,
+        )
+
+        self.other_tenant_meeting = Meeting.objects.create(
+            tenant=self.other_tenant,
+            title="Other Tenant Meeting",
+            meeting_type=MeetingType.REGULAR,
+            status=MeetingStatus.IN_PROGRESS,
+            meeting_date=timezone.now(),
+            chair=self.other_user,
+        )
+
+        self.participant = MeetingParticipant.objects.create(
+            meeting=self.meeting,
+            user=self.declarant,
+            role=ParticipantRole.REVIEWER,
+            attendance_status=AttendanceStatus.PRESENT,
+        )
+
+        self.other_participant = MeetingParticipant.objects.create(
+            meeting=self.other_meeting,
+            user=self.declarant,
+            role=ParticipantRole.REVIEWER,
+            attendance_status=AttendanceStatus.PRESENT,
+        )
+
+        self.other_user_participant = MeetingParticipant.objects.create(
+            meeting=self.meeting,
+            user=self.other_user,
+            role=ParticipantRole.REVIEWER,
+            attendance_status=AttendanceStatus.PRESENT,
+        )
+
+        self.other_tenant_participant = MeetingParticipant.objects.create(
+            meeting=self.other_tenant_meeting,
+            user=self.other_user,
+            role=ParticipantRole.REVIEWER,
+            attendance_status=AttendanceStatus.PRESENT,
+        )
+
+        self.agenda = MeetingAgenda.objects.create(
+            meeting=self.meeting,
+            protocol=self.protocol,
+            order=1,
+        )
+
+        self.other_meeting_agenda = MeetingAgenda.objects.create(
+            meeting=self.other_meeting,
+            protocol=self.protocol,
+            order=1,
+        )
+
+        self.other_tenant_agenda = MeetingAgenda.objects.create(
+            meeting=self.other_tenant_meeting,
+            protocol=self.other_tenant_protocol,
+            order=1,
+        )
+
+        self.other_protocol_agenda = MeetingAgenda.objects.create(
+            meeting=self.meeting,
+            protocol=self.other_protocol,
+            order=2,
+        )
+
+        self.declaration = ConflictOfInterestDeclarationService.declare(
+            tenant=self.tenant,
+            protocol=self.protocol,
+            declarant=self.declarant,
+            conflict_types=["financial"],
+            description="Financial relationship with the research sponsor.",
+            declared_at=timezone.now(),
+        )
+
+    def test_recuse_creates_recusal(self):
+        recused_at = timezone.now()
+
+        recusal = ConflictOfInterestRecusalService.recuse(
+            tenant=self.tenant,
+            declaration=self.declaration,
+            agenda=self.agenda,
+            participant=self.participant,
+            recused_at=recused_at,
+            note="Participant left during protocol discussion.",
+        )
+
+        self.assertIsNotNone(recusal.pk)
+        self.assertEqual(recusal.tenant, self.tenant)
+        self.assertEqual(recusal.declaration, self.declaration)
+        self.assertEqual(recusal.agenda, self.agenda)
+        self.assertEqual(recusal.participant, self.participant)
+        self.assertEqual(recusal.recused_at, recused_at)
+        self.assertEqual(
+            recusal.note,
+            "Participant left during protocol discussion.",
+        )
+
+        self.assertEqual(
+            ConflictOfInterestRecusal.objects.count(),
+            1,
+        )
+
+    def test_recuse_rejects_declaration_from_different_tenant(self):
+        other_declaration = ConflictOfInterestDeclaration.objects.create(
+            tenant=self.other_tenant,
+            protocol=self.other_tenant_protocol,
+            declarant=self.other_user,
+            conflict_types=["financial"],
+            description="Conflict in another tenant.",
+            declared_at=timezone.now(),
+        )
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "Declaration belongs to a different tenant.",
+        ):
+            ConflictOfInterestRecusalService.recuse(
+                tenant=self.tenant,
+                declaration=other_declaration,
+                agenda=self.agenda,
+                participant=self.participant,
+                recused_at=timezone.now(),
+            )
+
+        self.assertFalse(
+            ConflictOfInterestRecusal.objects.exists()
+        )
+
+    def test_recuse_rejects_agenda_from_different_tenant(self):
+        with self.assertRaisesMessage(
+            ValueError,
+            "Agenda belongs to a different tenant.",
+        ):
+            ConflictOfInterestRecusalService.recuse(
+                tenant=self.tenant,
+                declaration=self.declaration,
+                agenda=self.other_tenant_agenda,
+                participant=self.participant,
+                recused_at=timezone.now(),
+            )
+
+        self.assertFalse(
+            ConflictOfInterestRecusal.objects.exists()
+        )
+
+    def test_recuse_rejects_participant_from_different_meeting(self):
+        with self.assertRaisesMessage(
+            ValueError,
+            "Participant does not belong to the agenda meeting.",
+        ):
+            ConflictOfInterestRecusalService.recuse(
+                tenant=self.tenant,
+                declaration=self.declaration,
+                agenda=self.agenda,
+                participant=self.other_participant,
+                recused_at=timezone.now(),
+            )
+
+        self.assertFalse(
+            ConflictOfInterestRecusal.objects.exists()
+        )
+
+    def test_recuse_rejects_participant_who_is_not_declarant(self):
+        with self.assertRaisesMessage(
+            ValueError,
+            "Participant does not match the conflict declaration.",
+        ):
+            ConflictOfInterestRecusalService.recuse(
+                tenant=self.tenant,
+                declaration=self.declaration,
+                agenda=self.agenda,
+                participant=self.other_user_participant,
+                recused_at=timezone.now(),
+            )
+
+        self.assertFalse(
+            ConflictOfInterestRecusal.objects.exists()
+        )
+
+    def test_recuse_rejects_agenda_with_different_protocol(self):
+        with self.assertRaisesMessage(
+            ValueError,
+            "Agenda protocol does not match the conflict declaration.",
+        ):
+            ConflictOfInterestRecusalService.recuse(
+                tenant=self.tenant,
+                declaration=self.declaration,
+                agenda=self.other_protocol_agenda,
+                participant=self.participant,
+                recused_at=timezone.now(),
+            )
+
+        self.assertFalse(
+            ConflictOfInterestRecusal.objects.exists()
+        )
+
+def test_recuse_rejects_duplicate_recusal(self):
+    ConflictOfInterestRecusalService.recuse(
+        tenant=self.tenant,
+        declaration=self.declaration,
+        agenda=self.agenda,
+        participant=self.participant,
+        recused_at=timezone.now(),
+        note="Initial recusal",
+    )
+
+    with self.assertRaises(IntegrityError):
+        with transaction.atomic():
+            ConflictOfInterestRecusalService.recuse(
+                tenant=self.tenant,
+                declaration=self.declaration,
+                agenda=self.agenda,
+                participant=self.participant,
+                recused_at=timezone.now(),
+                note="Duplicate recusal",
+            )
+
+    self.assertEqual(
+        ConflictOfInterestRecusal.objects.count(),
+        1,
+    )

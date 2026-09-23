@@ -1,4 +1,7 @@
-from apps.compliance.models import ConflictOfInterestDeclaration
+from apps.compliance.models import (
+    ConflictOfInterestDeclaration,
+    ConflictOfInterestRecusal,
+)
 from apps.users.models import Membership
 
 
@@ -71,4 +74,61 @@ class ConflictOfInterestDeclarationService:
         return not ConflictOfInterestDeclarationService.has_conflict(
             protocol=protocol,
             declarant=declarant,
+        )
+
+
+class ConflictOfInterestRecusalService:
+
+    @staticmethod
+    def recuse(
+        *,
+        tenant,
+        declaration,
+        agenda,
+        participant,
+        recused_at,
+        note="",
+    ) -> ConflictOfInterestRecusal:
+
+        if declaration.tenant_id != tenant.id:
+            raise ValueError(
+                "Declaration belongs to a different tenant."
+            )
+
+        if agenda.meeting.tenant_id != tenant.id:
+            raise ValueError(
+                "Agenda belongs to a different tenant."
+            )
+
+        if participant.meeting_id != agenda.meeting_id:
+            raise ValueError(
+                "Participant does not belong to the agenda meeting."
+            )
+
+        if participant.user_id != declaration.declarant_id:
+            raise ValueError(
+                "Participant does not match the conflict declaration."
+            )
+
+        if agenda.protocol_id != declaration.protocol_id:
+            raise ValueError(
+                "Agenda protocol does not match the conflict declaration."
+            )
+
+        if not ConflictOfInterestDeclarationService.has_conflict(
+            protocol=agenda.protocol,
+            declarant=participant.user,
+        ):
+            raise ValueError(
+                "Participant does not have a conflict of interest "
+                "for this protocol."
+            )
+
+        return ConflictOfInterestRecusal.objects.create(
+            tenant=tenant,
+            declaration=declaration,
+            agenda=agenda,
+            participant=participant,
+            recused_at=recused_at,
+            note=note.strip(),
         )
