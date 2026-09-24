@@ -77,6 +77,31 @@ class Meeting(BaseModel):
     def __str__(self):
         return f"{self.title} ({self.meeting_date.date()})"
 
+class MeetingMinutes(BaseModel):
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="meeting_minutes",
+    )
+
+    meeting = models.OneToOneField(
+        "meetings.Meeting",
+        on_delete=models.CASCADE,
+        related_name="minutes",
+    )
+
+    content = models.TextField()
+
+    recorded_at = models.DateTimeField()
+
+    class Meta:
+        ordering = ["-recorded_at"]
+        verbose_name = "Meeting Minutes"
+        verbose_name_plural = "Meeting Minutes"
+
+    def __str__(self):
+        return f"Minutes - {self.meeting}"
+
 class MeetingParticipant(BaseModel):
     meeting = models.ForeignKey(
         "meetings.Meeting",

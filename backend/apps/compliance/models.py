@@ -70,3 +70,25 @@ class ConflictOfInterestRecusal(BaseModel):
                 name="unique_conflict_of_interest_recusal",
             )
         ]
+
+class MeetingMinutesRecusal(BaseModel):
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.PROTECT,
+        related_name="meeting_minutes_recusals",
+    )
+    minutes = models.ForeignKey(
+        "meetings.MeetingMinutes",
+        on_delete=models.PROTECT,
+        related_name="recusals",
+    )
+    recusal = models.OneToOneField(
+        ConflictOfInterestRecusal,
+        on_delete=models.PROTECT,
+        related_name="minutes_record",
+    )
+    recorded_at = models.DateTimeField()
+
+    class Meta:
+        db_table = "meeting_minutes_recusals"
+        ordering = ["-recorded_at"]

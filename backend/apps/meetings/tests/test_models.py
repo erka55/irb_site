@@ -1,8 +1,10 @@
 from django.test import TestCase
 from django.utils import timezone
 
+from django.db import IntegrityError
 from apps.meetings.models import (
     Meeting,
+    MeetingMinutes,
     MeetingParticipant,
     MeetingAgenda,
     MeetingVote,
@@ -38,6 +40,77 @@ class MeetingModelTest(TestCase):
         )
 
         self.assertEqual(meeting.title, "IRB Meeting")
+
+class MeetingMinutesModelTest(TestCase):
+
+    def test_create_meeting_minutes(self):
+        tenant = Tenant.objects.create(
+            code="must",
+            name="MUST",
+        )
+
+        chair = User.objects.create_user(
+            email="chair@example.com",
+            password="password123",
+        )
+
+        meeting = Meeting.objects.create(
+            tenant=tenant,
+            title="IRB Committee Meeting",
+            meeting_date=timezone.now(),
+            chair=chair,
+        )
+
+        recorded_at = timezone.now()
+
+        minutes = MeetingMinutes.objects.create(
+            tenant=tenant,
+            meeting=meeting,
+            content="Committee reviewed the submitted protocol.",
+            recorded_at=recorded_at,
+        )
+
+        self.assertEqual(minutes.tenant, tenant)
+        self.assertEqual(minutes.meeting, meeting)
+        self.assertEqual(
+            minutes.content,
+            "Committee reviewed the submitted protocol.",
+        )
+        self.assertEqual(minutes.recorded_at, recorded_at)
+        self.assertEqual(meeting.minutes, minutes)
+
+def test_only_one_minutes_per_meeting(self):
+    tenant = Tenant.objects.create(
+        code="must",
+        name="MUST",
+    )
+
+    chair = User.objects.create_user(
+        email="chair@example.com",
+        password="password123",
+    )
+
+    meeting = Meeting.objects.create(
+        tenant=tenant,
+        title="IRB Committee Meeting",
+        meeting_date=timezone.now(),
+        chair=chair,
+    )
+
+    MeetingMinutes.objects.create(
+        tenant=tenant,
+        meeting=meeting,
+        content="First version of meeting minutes.",
+        recorded_at=timezone.now(),
+    )
+
+    with self.assertRaises(IntegrityError):
+        MeetingMinutes.objects.create(
+            tenant=tenant,
+            meeting=meeting,
+            content="Second version of meeting minutes.",
+            recorded_at=timezone.now(),
+        )
 
 
 class MeetingParticipantModelTest(TestCase):
