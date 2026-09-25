@@ -1,6 +1,7 @@
 from apps.compliance.models import (
     ConflictOfInterestDeclaration,
     ConflictOfInterestRecusal,
+    MeetingMinutesRecusal,
 )
 from apps.users.models import Membership
 
@@ -131,4 +132,45 @@ class ConflictOfInterestRecusalService:
             participant=participant,
             recused_at=recused_at,
             note=note.strip(),
+        )
+
+
+class MeetingMinutesRecusalService:
+
+    @staticmethod
+    def record(
+        *,
+        tenant,
+        minutes,
+        recusal,
+        recorded_at,
+    ) -> MeetingMinutesRecusal:
+
+        if minutes.tenant_id != tenant.id:
+            raise ValueError(
+                "Meeting minutes belong to a different tenant."
+            )
+
+        if recusal.tenant_id != tenant.id:
+            raise ValueError(
+                "Recusal belongs to a different tenant."
+            )
+
+        if minutes.meeting_id != recusal.agenda.meeting_id:
+            raise ValueError(
+                "Meeting minutes do not belong to the recusal meeting."
+            )
+
+        if MeetingMinutesRecusal.objects.filter(
+            recusal_id=recusal.id,
+        ).exists():
+            raise ValueError(
+                "Recusal has already been recorded in meeting minutes."
+            )
+
+        return MeetingMinutesRecusal.objects.create(
+            tenant=tenant,
+            minutes=minutes,
+            recusal=recusal,
+            recorded_at=recorded_at,
         )

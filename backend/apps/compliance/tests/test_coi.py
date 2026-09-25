@@ -10,6 +10,7 @@ from apps.compliance.models import (
 from apps.compliance.services.coi_service import (
     ConflictOfInterestDeclarationService,
     ConflictOfInterestRecusalService,
+    MeetingMinutesRecusalService,
 )
 from apps.core.models import RoleChoices
 from apps.meetings.models import (
@@ -774,3 +775,168 @@ class MeetingMinutesRecusalModelTests(TestCase):
             self.recusal.minutes_record,
             minutes_recusal,
         )
+
+class MeetingMinutesRecusalServiceTests(TestCase):
+
+    def setUp(self):
+        self.tenant = Tenant.objects.create(
+            code="T202",
+            name="Minutes Service Tenant",
+        )
+        self.declarant = User.objects.create_user(
+            email="minutes-service@example.com",
+            password="test-password",
+        )
+        Membership.objects.create(
+            user=self.declarant,
+            tenant=self.tenant,
+            role=RoleChoices.REVIEWER,
+            is_active=True,
+        )
+        self.protocol = Protocol.objects.create(
+            tenant=self.tenant,
+            title="Minutes Service Protocol",
+            protocol_number="IRB-MINUTES-SVC-001",
+            principal_investigator=self.declarant,
+            risk_level=RiskLevel.LOW,
+            summary="Minutes service test protocol",
+        )
+        self.meeting = Meeting.objects.create(
+            tenant=self.tenant,
+            title="Minutes Service Meeting",
+            meeting_type=MeetingType.REGULAR,
+            status=MeetingStatus.IN_PROGRESS,
+            meeting_date=timezone.now(),
+            chair=self.declarant,
+        )
+        self.participant = MeetingParticipant.objects.create(
+            meeting=self.meeting,
+            user=self.declarant,
+            role=ParticipantRole.REVIEWER,
+            attendance_status=AttendanceStatus.PRESENT,
+        )
+        self.agenda = MeetingAgenda.objects.create(
+            meeting=self.meeting,
+            protocol=self.protocol,
+            order=1,
+        )
+        self.declaration = ConflictOfInterestDeclarationService.declare(
+            tenant=self.tenant,
+            protocol=self.protocol,
+            declarant=self.declarant,
+            conflict_types=["financial"],
+            description="Financial relationship with the research sponsor.",
+            declared_at=timezone.now(),
+        )
+        self.recusal = ConflictOfInterestRecusalService.recuse(
+            tenant=self.tenant,
+            declaration=self.declaration,
+            agenda=self.agenda,
+            participant=self.participant,
+            recused_at=timezone.now(),
+            note="Participant left during protocol discussion.",
+        )
+        self.minutes = MeetingMinutes.objects.create(
+            tenant=self.tenant,
+            meeting=self.meeting,
+            content=(
+                "The conflicted participant left the meeting "
+                "during discussion of the protocol."
+            ),
+            recorded_at=timezone.now(),
+        )
+
+    def test_record_creates_minutes_recusal(self):
+        recorded_at = timezone.now()
+
+        minutes_recusal = MeetingMinutesRecusalService.record(
+            tenant=self.tenant,
+            minutes=self.minutes,
+            recusal=self.recusal,
+            recorded_at=recorded_at,
+        )
+
+        self.assertIsNotNone(minutes_recusal.pk)
+        self.assertEqual(minutes_recusal.tenant, self.tenant)
+        self.assertEqual(minutes_recusal.minutes, self.minutes)
+        self.assertEqual(minutes_recusal.recusal, self.recusal)
+        self.assertEqual(minutes_recusal.recorded_at, recorded_at)
+
+    def test_record_rejects_tenant_mismatch(self):
+        other_tenant = Tenant.objects.create(
+            code="T203",
+            name="Other Minutes Tenant",
+        )
+
+        with self.assertRaises(ValueError):
+            MeetingMinutesRecusalService.record(
+                tenant=other_tenant,
+                minutes=self.minutes,
+                recusal=self.recusal,
+                recorded_at=timezone.now(),
+            )
+
+    def test_record_rejects_minutes_from_different_meeting(self):
+        other_meeting = Meeting.objects.create(
+            tenant=self.tenant,
+            title="Other Meeting",
+            meeting_type=MeetingType.REGULAR,
+            status=MeetingStatus.IN_PROGRESS,
+            meeting_date=timezone.now(),
+            chair=self.declarant,
+        )
+        other_minutes = MeetingMinutes.objects.create(
+            tenant=self.tenant,
+            meeting=other_meeting,
+            content="Other meeting minutes.",
+            recorded_at=timezone.now(),
+        )
+
+        with self.assertRaises(ValueError):
+            MeetingMinutesRecusalService.record(
+                tenant=self.tenant,
+                minutes=other_minutes,
+                recusal=self.recusal,
+                recorded_at=timezone.now(),
+            )
+
+    def test_record_rejects_duplicate_recording(self):
+        recorded_at = timezone.now()
+
+        MeetingMinutesRecusal.objects.create(
+            tenant=self.tenant,
+            minutes=self.minutes,
+            recusal=self.recusal,
+            recorded_at=recorded_at,
+        )
+
+        with self.assertRaises(ValueError):
+            MeetingMinutesRecusalService.record(
+                tenant=self.tenant,
+                minutes=self.minutes,
+                recusal=self.recusal,
+                recorded_at=timezone.now(),
+            )
+
+    def test_record_preserves_recorded_at(self):
+        recorded_at = timezone.now()
+
+        minutes_recusal = MeetingMinutesRecusalService.record(
+            tenant=self.tenant,
+            minutes=self.minutes,
+            recusal=self.recusal,
+            recorded_at=recorded_at,
+        )
+
+        self.assertEqual(minutes_recusal.recorded_at, recorded_at)
+
+    def test_record_preserves_reverse_relations(self):
+        minutes_recusal = MeetingMinutesRecusalService.record(
+            tenant=self.tenant,
+            minutes=self.minutes,
+            recusal=self.recusal,
+            recorded_at=timezone.now(),
+        )
+
+        self.assertEqual(self.minutes.recusals.get(), minutes_recusal)
+        self.assertEqual(self.recusal.minutes_record, minutes_recusal)
