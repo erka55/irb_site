@@ -4,6 +4,8 @@ from apps.compliance.models import (
     MeetingMinutesRecusal,
 )
 from apps.users.models import Membership
+from common.events.compliance import ConflictOfInterestRecused
+from common.events.factory import get_event_publisher
 
 
 class ConflictOfInterestDeclarationService:
@@ -125,7 +127,7 @@ class ConflictOfInterestRecusalService:
                 "for this protocol."
             )
 
-        return ConflictOfInterestRecusal.objects.create(
+        recusal = ConflictOfInterestRecusal.objects.create(
             tenant=tenant,
             declaration=declaration,
             agenda=agenda,
@@ -134,6 +136,20 @@ class ConflictOfInterestRecusalService:
             note=note.strip(),
         )
 
+        publisher = get_event_publisher()
+
+        publisher.publish(
+            ConflictOfInterestRecused(
+                tenant_id=tenant.id,
+                actor_id=participant.user_id,
+                recusal_id=recusal.id,
+                declaration_id=declaration.id,
+                agenda_id=agenda.id,
+                participant_id=participant.id,
+            )
+        )
+
+        return recusal
 
 class MeetingMinutesRecusalService:
 

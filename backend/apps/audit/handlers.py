@@ -7,6 +7,10 @@ from apps.reviews.models import Review
 from apps.meetings.models import Meeting
 from apps.decision.models import Decision
 from apps.monitoring.models import ProgressReport, IncidentReport
+from apps.compliance.models import (
+    ConflictOfInterestRecusal,
+    MeetingMinutesRecusal,
+)
 from apps.tenants.models import Tenant
 from apps.users.models import User
 from common.events.types import EventTypes
@@ -104,6 +108,14 @@ class AuditEventHandler:
             "incident_report",
             "incident_report_id",
         ),
+        EventTypes.CONFLICT_OF_INTEREST_RECUSED: (
+            "conflict_of_interest_recusal",
+            "recusal_id",
+        ),
+        EventTypes.CONFLICT_OF_INTEREST_MINUTES_RECORDED: (
+            "meeting_minutes_recusal",
+            "minutes_recusal_id",
+        ),
     }
 
     ENTITY_MODELS = {
@@ -115,6 +127,8 @@ class AuditEventHandler:
         "decision": Decision,
         "progress_report": ProgressReport,
         "incident_report": IncidentReport,
+        "conflict_of_interest_recusal": ConflictOfInterestRecusal,
+        "meeting_minutes_recusal": MeetingMinutesRecusal,
     }
 
     @classmethod

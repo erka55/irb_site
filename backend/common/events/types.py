@@ -30,4 +30,12 @@ class EventTypes:
 
     # Monitoring Events
     PROGRESS_REPORT_SUBMITTED = "progress_report.submitted"
-    INCIDENT_REPORT_SUBMITTED = "incident_report.submitted"    
+    INCIDENT_REPORT_SUBMITTED = "incident_report.submitted"
+
+    # Compliance Events
+    CONFLICT_OF_INTEREST_RECUSED = (
+        "conflict_of_interest.recused"
+    )
+    CONFLICT_OF_INTEREST_MINUTES_RECORDED = (
+        "conflict_of_interest.minutes_recorded"
+    )
