@@ -92,3 +92,49 @@ class MeetingMinutesRecusal(BaseModel):
     class Meta:
         db_table = "meeting_minutes_recusals"
         ordering = ["-recorded_at"]
+
+class EthicsViolation(BaseModel):
+    class ViolationType(models.TextChoices):
+        UNAUTHORIZED_RESEARCH = (
+            "UNAUTHORIZED_RESEARCH",
+            "Starting research without approval",
+        )
+        DATA_FALSIFICATION = (
+            "DATA_FALSIFICATION",
+            "Falsifying data",
+        )
+        PARTICIPANT_RIGHTS_VIOLATION = (
+            "PARTICIPANT_RIGHTS_VIOLATION",
+            "Violating participant rights",
+        )
+        CONFIDENTIALITY_BREACH = (
+            "CONFIDENTIALITY_BREACH",
+            "Breaching confidentiality",
+        )
+        PROGRESS_REPORT_NOT_SUBMITTED = (
+            "PROGRESS_REPORT_NOT_SUBMITTED",
+            "Failing to submit progress reports",
+        )
+
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.PROTECT,
+        related_name="ethics_violations",
+    )
+    protocol = models.ForeignKey(
+        Protocol,
+        on_delete=models.PROTECT,
+        related_name="ethics_violations",
+    )
+    violation_type = models.CharField(
+        max_length=50,
+        choices=ViolationType.choices,
+    )
+    description = models.TextField()
+
+    class Meta:
+        db_table = "ethics_violations"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.protocol} - {self.violation_type}"
