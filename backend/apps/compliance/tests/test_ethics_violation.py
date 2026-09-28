@@ -1,3 +1,4 @@
+from unittest.mock import patch
 from django.test import TestCase
 
 from apps.compliance.models import EthicsViolation
@@ -72,6 +73,7 @@ class EthicsViolationServiceTests(TestCase):
             protocol=self.protocol,
             violation_type=EthicsViolation.ViolationType.DATA_FALSIFICATION,
             description="Research data was found to have been falsified.",
+            actor_id=self.user.id,
         )
 
         self.assertIsNotNone(violation.pk)
@@ -101,6 +103,7 @@ class EthicsViolationServiceTests(TestCase):
                 protocol=self.other_protocol,
                 violation_type=EthicsViolation.ViolationType.DATA_FALSIFICATION,
                 description="Violation description.",
+                actor_id=self.user.id,
             )
 
         self.assertFalse(
@@ -117,6 +120,7 @@ class EthicsViolationServiceTests(TestCase):
                 protocol=self.protocol,
                 violation_type=EthicsViolation.ViolationType.DATA_FALSIFICATION,
                 description="   ",
+                actor_id=self.user.id,
             )
 
         self.assertFalse(
@@ -129,6 +133,7 @@ class EthicsViolationServiceTests(TestCase):
             protocol=self.protocol,
             violation_type=EthicsViolation.ViolationType.CONFIDENTIALITY_BREACH,
             description="  Confidentiality breach occurred.  ",
+            actor_id=self.user.id,
         )
 
         self.assertEqual(
@@ -146,8 +151,55 @@ class EthicsViolationServiceTests(TestCase):
                 protocol=self.protocol,
                 violation_type="INVALID_TYPE",
                 description="Violation description.",
+                actor_id=self.user.id,
             )
 
         self.assertFalse(
             EthicsViolation.objects.exists()
+        )
+
+    @patch(
+        "apps.compliance.services.ethics_violation_service.get_event_publisher"
+    )
+    def test_record_publishes_ethics_violation_event(
+        self,
+        mock_get_event_publisher,
+    ):
+        publisher = mock_get_event_publisher.return_value
+
+        violation = EthicsViolationService.record(
+            tenant=self.tenant,
+            protocol=self.protocol,
+            violation_type=EthicsViolation.ViolationType.DATA_FALSIFICATION,
+            description="Research data was falsified.",
+            actor_id=self.user.id,
+        )
+
+        publisher.publish.assert_called_once()
+
+        event = publisher.publish.call_args.args[0]
+
+        self.assertEqual(
+            event.event_type,
+            "ethics_violation.recorded",
+        )
+        self.assertEqual(
+            event.tenant_id,
+            str(self.tenant.id),
+        )
+        self.assertEqual(
+            event.actor_id,
+            str(self.user.id),
+        )
+        self.assertEqual(
+            event.payload["violation_id"],
+            str(violation.id),
+        )
+        self.assertEqual(
+            event.payload["protocol_id"],
+            str(self.protocol.id),
+        )
+        self.assertEqual(
+            event.payload["violation_type"],
+            EthicsViolation.ViolationType.DATA_FALSIFICATION,
         )

@@ -9,6 +9,7 @@ from apps.decision.models import Decision
 from apps.monitoring.models import ProgressReport, IncidentReport
 from apps.compliance.models import (
     ConflictOfInterestRecusal,
+    EthicsViolation,
     MeetingMinutesRecusal,
 )
 from apps.tenants.models import Tenant
@@ -116,6 +117,10 @@ class AuditEventHandler:
             "meeting_minutes_recusal",
             "minutes_recusal_id",
         ),
+        EventTypes.ETHICS_VIOLATION_RECORDED: (
+            "ethics_violation",
+            "violation_id",
+        ),
     }
 
     ENTITY_MODELS = {
@@ -129,6 +134,7 @@ class AuditEventHandler:
         "incident_report": IncidentReport,
         "conflict_of_interest_recusal": ConflictOfInterestRecusal,
         "meeting_minutes_recusal": MeetingMinutesRecusal,
+        "ethics_violation": EthicsViolation,
     }
 
     @classmethod
