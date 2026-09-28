@@ -28,3 +28,28 @@ class ConflictOfInterestRecused(BaseEvent):
                 "participant_id": str(participant_id),
             },
         )
+
+class EthicsViolationRecorded(BaseEvent):
+    """
+    Published when an ethics violation is recorded
+    against a research protocol.
+    """
+
+    def __init__(
+        self,
+        tenant_id,
+        actor_id,
+        violation_id,
+        protocol_id,
+        violation_type,
+    ):
+        super().__init__(
+            event_type=EventTypes.ETHICS_VIOLATION_RECORDED,
+            tenant_id=str(tenant_id) if tenant_id else None,
+            actor_id=str(actor_id) if actor_id else None,
+            payload={
+                "violation_id": str(violation_id),
+                "protocol_id": str(protocol_id),
+                "violation_type": violation_type,
+            },
+        )

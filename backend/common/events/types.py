@@ -39,3 +39,6 @@ class EventTypes:
     CONFLICT_OF_INTEREST_MINUTES_RECORDED = (
         "conflict_of_interest.minutes_recorded"
     )
+    ETHICS_VIOLATION_RECORDED = (
+        "ethics_violation.recorded"
+    )
