@@ -277,3 +277,35 @@ class ClassificationAssessment(BaseModel):
     class Meta:
         db_table = "classification_assessments"
         ordering = ["-evaluated_at"]
+
+class ResearchCompletion(BaseModel):
+
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.PROTECT,
+        related_name="research_completions",
+    )
+
+    protocol = models.OneToOneField(
+        Protocol,
+        on_delete=models.PROTECT,
+        related_name="research_completion",
+    )
+
+    completed_at = models.DateTimeField()
+
+    recorded_by = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="recorded_research_completions",
+    )
+
+    class Meta:
+        db_table = "research_completions"
+        ordering = ["-completed_at"]
+
+    def __str__(self):
+        return (
+            f"Research completion - "
+            f"{self.protocol}"
+        )

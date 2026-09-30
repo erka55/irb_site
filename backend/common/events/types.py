@@ -32,6 +32,8 @@ class EventTypes:
     PROGRESS_REPORT_SUBMITTED = "progress_report.submitted"
     INCIDENT_REPORT_SUBMITTED = "incident_report.submitted"
 
+    RESEARCH_COMPLETED = "research.completed"
+
     # Compliance Events
     CONFLICT_OF_INTEREST_RECUSED = (
         "conflict_of_interest.recused"

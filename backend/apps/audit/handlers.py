@@ -1,8 +1,12 @@
 from uuid import UUID
 
 from apps.audit.services import log_event
-from apps.protocols.models import ClassificationAssessment, Protocol
-from apps.protocols.models import ProtocolSubmission
+from apps.protocols.models import (
+    ClassificationAssessment,
+    Protocol,
+    ProtocolSubmission,
+    ResearchCompletion,
+)
 from apps.reviews.models import Review
 from apps.meetings.models import Meeting
 from apps.decision.models import Decision
@@ -109,6 +113,10 @@ class AuditEventHandler:
             "incident_report",
             "incident_report_id",
         ),
+        EventTypes.RESEARCH_COMPLETED: (
+            "research_completion",
+            "research_completion_id",
+        ),
         EventTypes.CONFLICT_OF_INTEREST_RECUSED: (
             "conflict_of_interest_recusal",
             "recusal_id",
@@ -132,6 +140,7 @@ class AuditEventHandler:
         "decision": Decision,
         "progress_report": ProgressReport,
         "incident_report": IncidentReport,
+        "research_completion": ResearchCompletion,
         "conflict_of_interest_recusal": ConflictOfInterestRecusal,
         "meeting_minutes_recusal": MeetingMinutesRecusal,
         "ethics_violation": EthicsViolation,
