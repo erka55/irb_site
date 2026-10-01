@@ -4,7 +4,10 @@ from apps.compliance.models import (
     MeetingMinutesRecusal,
 )
 from apps.users.models import Membership
-from common.events.compliance import ConflictOfInterestRecused
+from common.events.compliance import (
+    ConflictOfInterestRecused,
+    MeetingMinutesRecusalRecorded,
+)
 from common.events.factory import get_event_publisher
 
 
@@ -151,6 +154,7 @@ class ConflictOfInterestRecusalService:
 
         return recusal
 
+
 class MeetingMinutesRecusalService:
 
     @staticmethod
@@ -184,9 +188,23 @@ class MeetingMinutesRecusalService:
                 "Recusal has already been recorded in meeting minutes."
             )
 
-        return MeetingMinutesRecusal.objects.create(
+        minutes_recusal = MeetingMinutesRecusal.objects.create(
             tenant=tenant,
             minutes=minutes,
             recusal=recusal,
             recorded_at=recorded_at,
         )
+
+        publisher = get_event_publisher()
+
+        publisher.publish(
+            MeetingMinutesRecusalRecorded(
+                tenant_id=tenant.id,
+                actor_id=None,
+                minutes_recusal_id=minutes_recusal.id,
+                recusal_id=recusal.id,
+                minutes_id=minutes.id,
+            )
+        )
+
+        return minutes_recusal

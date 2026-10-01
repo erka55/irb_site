@@ -53,3 +53,28 @@ class EthicsViolationRecorded(BaseEvent):
                 "violation_type": violation_type,
             },
         )
+
+class MeetingMinutesRecusalRecorded(BaseEvent):
+    """
+    Published when a conflict-of-interest recusal
+    is recorded in meeting minutes.
+    """
+
+    def __init__(
+        self,
+        tenant_id,
+        actor_id,
+        minutes_recusal_id,
+        recusal_id,
+        minutes_id,
+    ):
+        super().__init__(
+            event_type=EventTypes.CONFLICT_OF_INTEREST_MINUTES_RECORDED,
+            tenant_id=str(tenant_id) if tenant_id else None,
+            actor_id=str(actor_id) if actor_id else None,
+            payload={
+                "minutes_recusal_id": str(minutes_recusal_id),
+                "recusal_id": str(recusal_id),
+                "minutes_id": str(minutes_id),
+            },
+        )

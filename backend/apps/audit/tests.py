@@ -11,6 +11,25 @@ from apps.audit.queries import AuditLogQueryService
 from apps.tenants.models import Tenant
 from apps.users.models import User
 from common.events.protocol import ProtocolSubmitted
+from common.events.compliance import (
+    ConflictOfInterestRecused,
+    MeetingMinutesRecusalRecorded,
+)
+from apps.compliance.models import (
+    ConflictOfInterestDeclaration,
+    ConflictOfInterestRecusal,
+    MeetingMinutesRecusal,
+)
+from apps.meetings.models import (
+    AttendanceStatus,
+    Meeting,
+    MeetingAgenda,
+    MeetingMinutes,
+    MeetingParticipant,
+    MeetingStatus,
+    MeetingType,
+    ParticipantRole,
+)
 from common.event_store.django_repository import (
     DjangoEventStoreRepository,
 )
@@ -473,6 +492,208 @@ class AuditEventHandlerTests(TestCase):
             tenant_id=self.tenant.id,
             actor_id=self.user.id,
             protocol_id=protocol.id,
+        )
+
+        with self.assertRaises(ValueError):
+            AuditEventHandler.handle(event)
+
+class ComplianceAuditEventHandlerTests(TestCase):
+
+    def setUp(self):
+        self.tenant = Tenant.objects.create(
+            code="compliance-audit-tenant",
+            name="Compliance Audit Tenant",
+        )
+
+        self.user = User.objects.create_user(
+            email="compliance-audit@test.com",
+            password="test-password",
+        )
+
+        self.protocol = Protocol.objects.create(
+            tenant=self.tenant,
+            title="Compliance Audit Protocol",
+            protocol_number="COMPLIANCE-AUDIT-001",
+            principal_investigator=self.user,
+            risk_level="low",
+            status="draft",
+            summary="Compliance audit handler test protocol",
+        )
+
+        self.meeting = Meeting.objects.create(
+            tenant=self.tenant,
+            title="Compliance Audit Meeting",
+            meeting_type=MeetingType.REGULAR,
+            status=MeetingStatus.IN_PROGRESS,
+            meeting_date=datetime.now(UTC),
+            chair=self.user,
+        )
+
+        self.participant = MeetingParticipant.objects.create(
+            meeting=self.meeting,
+            user=self.user,
+            role=ParticipantRole.REVIEWER,
+            attendance_status=AttendanceStatus.PRESENT,
+        )
+
+        self.agenda = MeetingAgenda.objects.create(
+            meeting=self.meeting,
+            protocol=self.protocol,
+            order=1,
+        )
+
+        self.declaration = ConflictOfInterestDeclaration.objects.create(
+            tenant=self.tenant,
+            protocol=self.protocol,
+            declarant=self.user,
+            conflict_types=["financial"],
+            description="Compliance audit test conflict.",
+            declared_at=datetime.now(UTC),
+        )
+
+        self.recusal = ConflictOfInterestRecusal.objects.create(
+            tenant=self.tenant,
+            declaration=self.declaration,
+            agenda=self.agenda,
+            participant=self.participant,
+            recused_at=datetime.now(UTC),
+            note="Compliance audit test recusal.",
+        )
+
+        self.minutes = MeetingMinutes.objects.create(
+            tenant=self.tenant,
+            meeting=self.meeting,
+            content=(
+                "The conflicted participant left the meeting "
+                "during protocol discussion."
+            ),
+            recorded_at=datetime.now(UTC),
+        )
+
+        self.minutes_recusal = MeetingMinutesRecusal.objects.create(
+            tenant=self.tenant,
+            minutes=self.minutes,
+            recusal=self.recusal,
+            recorded_at=datetime.now(UTC),
+        )
+
+    def test_handle_creates_audit_log_for_conflict_of_interest_recusal(self):
+        event = ConflictOfInterestRecused(
+            tenant_id=self.tenant.id,
+            actor_id=self.user.id,
+            recusal_id=self.recusal.id,
+            declaration_id=self.declaration.id,
+            agenda_id=self.agenda.id,
+            participant_id=self.participant.id,
+        )
+
+        log = AuditEventHandler.handle(event)
+
+        self.assertIsInstance(log, AuditLog)
+
+        self.assertEqual(
+            log.action,
+            EventTypes.CONFLICT_OF_INTEREST_RECUSED,
+        )
+
+        self.assertEqual(
+            log.entity_type,
+            "conflict_of_interest_recusal",
+        )
+
+        self.assertEqual(
+            log.entity_id,
+            self.recusal.id,
+        )
+
+        self.assertEqual(
+            log.tenant,
+            self.tenant,
+        )
+
+        self.assertEqual(
+            log.actor,
+            self.user,
+        )
+
+        self.assertEqual(
+            log.payload,
+            event.payload,
+        )
+
+    def test_handle_creates_audit_log_for_meeting_minutes_recusal(self):
+        event = MeetingMinutesRecusalRecorded(
+            tenant_id=self.tenant.id,
+            actor_id=self.user.id,
+            minutes_recusal_id=self.minutes_recusal.id,
+            recusal_id=self.recusal.id,
+            minutes_id=self.minutes.id,
+        )
+
+        log = AuditEventHandler.handle(event)
+
+        self.assertIsInstance(log, AuditLog)
+
+        self.assertEqual(
+            log.action,
+            EventTypes.CONFLICT_OF_INTEREST_MINUTES_RECORDED,
+        )
+
+        self.assertEqual(
+            log.entity_type,
+            "meeting_minutes_recusal",
+        )
+
+        self.assertEqual(
+            log.entity_id,
+            self.minutes_recusal.id,
+        )
+
+        self.assertEqual(
+            log.tenant,
+            self.tenant,
+        )
+
+        self.assertEqual(
+            log.actor,
+            self.user,
+        )
+
+        self.assertEqual(
+            log.payload,
+            event.payload,
+        )
+
+    def test_handle_rejects_cross_tenant_conflict_of_interest_recusal(self):
+        other_tenant = Tenant.objects.create(
+            code="compliance-audit-other",
+            name="Other Compliance Audit Tenant",
+        )
+
+        event = ConflictOfInterestRecused(
+            tenant_id=other_tenant.id,
+            actor_id=self.user.id,
+            recusal_id=self.recusal.id,
+            declaration_id=self.declaration.id,
+            agenda_id=self.agenda.id,
+            participant_id=self.participant.id,
+        )
+
+        with self.assertRaises(ValueError):
+            AuditEventHandler.handle(event)
+
+    def test_handle_rejects_cross_tenant_meeting_minutes_recusal(self):
+        other_tenant = Tenant.objects.create(
+            code="compliance-audit-other-minutes",
+            name="Other Compliance Minutes Tenant",
+        )
+
+        event = MeetingMinutesRecusalRecorded(
+            tenant_id=other_tenant.id,
+            actor_id=self.user.id,
+            minutes_recusal_id=self.minutes_recusal.id,
+            recusal_id=self.recusal.id,
+            minutes_id=self.minutes.id,
         )
 
         with self.assertRaises(ValueError):
