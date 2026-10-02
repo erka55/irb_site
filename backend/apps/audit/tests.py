@@ -1,25 +1,23 @@
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
+from django.db import IntegrityError, transaction
 from django.test import TestCase
 from rest_framework.test import APITestCase
 
+from apps.audit.access import AuditLogAccessService
 from apps.audit.handlers import AuditEventHandler
 from apps.audit.models import AuditLog
-from apps.audit.services import log_event
 from apps.audit.queries import AuditLogQueryService
-from apps.tenants.models import Tenant
-from apps.users.models import User
-from common.events.protocol import ProtocolSubmitted
-from common.events.compliance import (
-    ConflictOfInterestRecused,
-    MeetingMinutesRecusalRecorded,
-)
+from apps.audit.services import log_event
 from apps.compliance.models import (
     ConflictOfInterestDeclaration,
     ConflictOfInterestRecusal,
+    EthicsViolation,
     MeetingMinutesRecusal,
 )
+from apps.core.models import RoleChoices
+from apps.decision.models import Decision
 from apps.meetings.models import (
     AttendanceStatus,
     Meeting,
@@ -30,20 +28,37 @@ from apps.meetings.models import (
     MeetingType,
     ParticipantRole,
 )
+from apps.monitoring.models import (
+    IncidentReport,
+    MonitoringPlan,
+    ProgressReport,
+)
+from apps.protocols.models import (
+    ClassificationAssessment,
+    Protocol,
+    ProtocolSubmission,
+    ProtocolVersion,
+    ResearchCompletion,
+)
+from apps.reviews.models import Review
+from apps.tenants.models import Tenant
+from apps.users.models import Membership, User
 from common.event_store.django_repository import (
     DjangoEventStoreRepository,
 )
-from apps.audit.access import AuditLogAccessService
-from apps.core.models import RoleChoices
-from apps.users.models import Membership
-from common.events.review import ReviewCompleted
-from common.events.monitoring import ProgressReportSubmitted
-from common.events.incident import IncidentReportSubmitted
 from common.events.classification import ClassificationAssessed
+from common.events.compliance import (
+    ConflictOfInterestRecused,
+    EthicsViolationRecorded,
+    MeetingMinutesRecusalRecorded,
+)
+from common.events.factory import get_event_publisher
+from common.events.incident import IncidentReportSubmitted
+from common.events.monitoring import ProgressReportSubmitted
+from common.events.protocol import ProtocolSubmitted
+from common.events.review import ReviewCompleted
 from common.events.types import EventTypes
-from apps.protocols.models import ClassificationAssessment, Protocol, ProtocolVersion
-from apps.reviews.models import Review
-from apps.monitoring.models import IncidentReport, MonitoringPlan, ProgressReport
+
 
 class AuditLogTests(TestCase):
 
@@ -168,6 +183,7 @@ class AuditLogTests(TestCase):
         self.assertFalse(
             hasattr(log, "soft_delete")
         )
+
     def test_log_event_requires_tenant(self):
         with self.assertRaises(TypeError):
             log_event(
@@ -175,6 +191,7 @@ class AuditLogTests(TestCase):
                 entity_type="Decision",
                 entity_id=uuid4(),
             )
+
 
 class AuditEventHandlerTests(TestCase):
 
@@ -223,14 +240,18 @@ class AuditEventHandlerTests(TestCase):
             created_by=self.user,
         )
 
-        self.classification_assessment = ClassificationAssessment.objects.create(
-            tenant=self.tenant,
-            protocol=self.protocol,
-            protocol_version=self.protocol_version,
-            classification="exempt",
-            evaluated_at=datetime.now(UTC),
-            evaluated_by=self.user,
-            rationale="Audit handler test classification assessment",
+        self.classification_assessment = (
+            ClassificationAssessment.objects.create(
+                tenant=self.tenant,
+                protocol=self.protocol,
+                protocol_version=self.protocol_version,
+                classification="exempt",
+                evaluated_at=datetime.now(UTC),
+                evaluated_by=self.user,
+                rationale=(
+                    "Audit handler test classification assessment"
+                ),
+            )
         )
 
         self.review = Review.objects.create(
@@ -263,7 +284,9 @@ class AuditEventHandlerTests(TestCase):
             reported_by=self.user,
             incident_type="PARTICIPANT_SAFETY",
             occurred_at=datetime.now(UTC),
-            description="Audit handler test incident report",
+            description=(
+                "Audit handler test incident report"
+            ),
         )
 
     def test_handle_creates_audit_log(self):
@@ -436,7 +459,9 @@ class AuditEventHandlerTests(TestCase):
             incident_report_id,
         )
 
-    def test_handle_uses_classification_assessment_id_as_entity_id(self):
+    def test_handle_uses_classification_assessment_id_as_entity_id(
+        self,
+    ):
         protocol_id = uuid4()
         protocol_version_id = uuid4()
         assessment_id = self.classification_assessment.id
@@ -497,6 +522,7 @@ class AuditEventHandlerTests(TestCase):
         with self.assertRaises(ValueError):
             AuditEventHandler.handle(event)
 
+
 class ComplianceAuditEventHandlerTests(TestCase):
 
     def setUp(self):
@@ -542,13 +568,17 @@ class ComplianceAuditEventHandlerTests(TestCase):
             order=1,
         )
 
-        self.declaration = ConflictOfInterestDeclaration.objects.create(
-            tenant=self.tenant,
-            protocol=self.protocol,
-            declarant=self.user,
-            conflict_types=["financial"],
-            description="Compliance audit test conflict.",
-            declared_at=datetime.now(UTC),
+        self.declaration = (
+            ConflictOfInterestDeclaration.objects.create(
+                tenant=self.tenant,
+                protocol=self.protocol,
+                declarant=self.user,
+                conflict_types=["financial"],
+                description=(
+                    "Compliance audit test conflict."
+                ),
+                declared_at=datetime.now(UTC),
+            )
         )
 
         self.recusal = ConflictOfInterestRecusal.objects.create(
@@ -577,7 +607,20 @@ class ComplianceAuditEventHandlerTests(TestCase):
             recorded_at=datetime.now(UTC),
         )
 
-    def test_handle_creates_audit_log_for_conflict_of_interest_recusal(self):
+        self.ethics_violation = EthicsViolation.objects.create(
+            tenant=self.tenant,
+            protocol=self.protocol,
+            violation_type=(
+                EthicsViolation.ViolationType.CONFIDENTIALITY_BREACH
+            ),
+            description=(
+                "Compliance audit test ethics violation."
+            ),
+        )
+
+    def test_handle_creates_audit_log_for_conflict_of_interest_recusal(
+        self,
+    ):
         event = ConflictOfInterestRecused(
             tenant_id=self.tenant.id,
             actor_id=self.user.id,
@@ -621,7 +664,9 @@ class ComplianceAuditEventHandlerTests(TestCase):
             event.payload,
         )
 
-    def test_handle_creates_audit_log_for_meeting_minutes_recusal(self):
+    def test_handle_creates_audit_log_for_meeting_minutes_recusal(
+        self,
+    ):
         event = MeetingMinutesRecusalRecorded(
             tenant_id=self.tenant.id,
             actor_id=self.user.id,
@@ -664,7 +709,54 @@ class ComplianceAuditEventHandlerTests(TestCase):
             event.payload,
         )
 
-    def test_handle_rejects_cross_tenant_conflict_of_interest_recusal(self):
+    def test_handle_creates_audit_log_for_ethics_violation(self):
+        event = EthicsViolationRecorded(
+            tenant_id=self.tenant.id,
+            actor_id=self.user.id,
+            violation_id=self.ethics_violation.id,
+            protocol_id=self.protocol.id,
+            violation_type=(
+                self.ethics_violation.violation_type
+            ),
+        )
+
+        log = AuditEventHandler.handle(event)
+
+        self.assertIsInstance(log, AuditLog)
+
+        self.assertEqual(
+            log.action,
+            EventTypes.ETHICS_VIOLATION_RECORDED,
+        )
+
+        self.assertEqual(
+            log.entity_type,
+            "ethics_violation",
+        )
+
+        self.assertEqual(
+            log.entity_id,
+            self.ethics_violation.id,
+        )
+
+        self.assertEqual(
+            log.tenant,
+            self.tenant,
+        )
+
+        self.assertEqual(
+            log.actor,
+            self.user,
+        )
+
+        self.assertEqual(
+            log.payload,
+            event.payload,
+        )
+
+    def test_handle_rejects_cross_tenant_conflict_of_interest_recusal(
+        self,
+    ):
         other_tenant = Tenant.objects.create(
             code="compliance-audit-other",
             name="Other Compliance Audit Tenant",
@@ -682,7 +774,9 @@ class ComplianceAuditEventHandlerTests(TestCase):
         with self.assertRaises(ValueError):
             AuditEventHandler.handle(event)
 
-    def test_handle_rejects_cross_tenant_meeting_minutes_recusal(self):
+    def test_handle_rejects_cross_tenant_meeting_minutes_recusal(
+        self,
+    ):
         other_tenant = Tenant.objects.create(
             code="compliance-audit-other-minutes",
             name="Other Compliance Minutes Tenant",
@@ -698,6 +792,26 @@ class ComplianceAuditEventHandlerTests(TestCase):
 
         with self.assertRaises(ValueError):
             AuditEventHandler.handle(event)
+
+    def test_handle_rejects_cross_tenant_ethics_violation(self):
+        other_tenant = Tenant.objects.create(
+            code="compliance-audit-other-ethics",
+            name="Other Compliance Ethics Tenant",
+        )
+
+        event = EthicsViolationRecorded(
+            tenant_id=other_tenant.id,
+            actor_id=self.user.id,
+            violation_id=self.ethics_violation.id,
+            protocol_id=self.protocol.id,
+            violation_type=(
+                self.ethics_violation.violation_type
+            ),
+        )
+
+        with self.assertRaises(ValueError):
+            AuditEventHandler.handle(event)
+
 
 class DjangoEventStoreRepositoryTests(TestCase):
 
@@ -805,7 +919,125 @@ class DjangoEventStoreRepositoryTests(TestCase):
 
         with self.assertRaises(Exception):
             repository.append(event)
-        
+
+
+class AuditEventPublisherIntegrationTests(TestCase):
+
+    def setUp(self):
+        self.tenant = Tenant.objects.create(
+            code="publisher-tenant",
+            name="Publisher Tenant",
+        )
+
+        self.user = User.objects.create_user(
+            email="publisher@test.com",
+            password="test-password",
+        )
+
+        self.protocol = Protocol.objects.create(
+            tenant=self.tenant,
+            title="Publisher Test Protocol",
+            protocol_number="PUBLISHER-001",
+            principal_investigator=self.user,
+            risk_level="low",
+            status="draft",
+            summary="Publisher integration test protocol",
+        )
+
+    def test_publish_persists_event_as_audit_log(self):
+        event = ProtocolSubmitted(
+            tenant_id=self.tenant.id,
+            actor_id=self.user.id,
+            protocol_id=self.protocol.id,
+        )
+
+        publisher = get_event_publisher()
+
+        publisher.publish(event)
+
+        log = AuditLog.objects.get(
+            event_id=event.event_id,
+        )
+
+        self.assertEqual(
+            str(log.event_id),
+            event.event_id,
+        )
+
+        self.assertEqual(
+            log.occurred_at,
+            event.occurred_at,
+        )
+
+        self.assertEqual(
+            log.tenant,
+            self.tenant,
+        )
+
+        self.assertEqual(
+            log.actor,
+            self.user,
+        )
+
+        self.assertEqual(
+            log.action,
+            event.event_type,
+        )
+
+        self.assertEqual(
+            log.entity_type,
+            "protocol",
+        )
+
+        self.assertEqual(
+            log.entity_id,
+            self.protocol.id,
+        )
+
+        self.assertEqual(
+            log.payload,
+            event.payload,
+        )
+
+    def test_publish_creates_exactly_one_audit_log(self):
+        event = ProtocolSubmitted(
+            tenant_id=self.tenant.id,
+            actor_id=self.user.id,
+            protocol_id=self.protocol.id,
+        )
+
+        publisher = get_event_publisher()
+
+        publisher.publish(event)
+
+        self.assertEqual(
+            AuditLog.objects.filter(
+                event_id=event.event_id,
+            ).count(),
+            1,
+        )
+
+    def test_publish_rejects_duplicate_event_id(self):
+        event = ProtocolSubmitted(
+            tenant_id=self.tenant.id,
+            actor_id=self.user.id,
+            protocol_id=self.protocol.id,
+        )
+
+        publisher = get_event_publisher()
+
+        publisher.publish(event)
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                publisher.publish(event)
+
+        self.assertEqual(
+            AuditLog.objects.filter(
+                event_id=event.event_id,
+            ).count(),
+            1,
+        )
 
 class AuditLogQueryServiceTests(TestCase):
 
@@ -906,7 +1138,12 @@ class AuditLogQueryServiceTests(TestCase):
         )
 
         self.assertEqual(
-            list(logs.values_list("tenant_id", flat=True)),
+            list(
+                logs.values_list(
+                    "tenant_id",
+                    flat=True,
+                )
+            ),
             [self.tenant_a.id],
         )
 
@@ -985,6 +1222,7 @@ class AuditLogQueryServiceTests(TestCase):
             logs.first().event_id,
             self.event_b,
         )
+
 
 class AuditLogAccessServiceTests(TestCase):
 
@@ -1253,7 +1491,9 @@ class AuditLogAPIAccessTests(APITestCase):
             returned_ids,
         )
 
-    def test_user_cannot_access_audit_logs_from_different_tenant(self):
+    def test_user_cannot_access_audit_logs_from_different_tenant(
+        self,
+    ):
         self._authenticate(self.chair)
 
         response = self.client.get(
@@ -1337,7 +1577,9 @@ class AuditLogAPIAccessTests(APITestCase):
             405,
         )
 
-    def test_user_cannot_access_audit_log_detail_from_different_tenant(self):
+    def test_user_cannot_access_audit_log_detail_from_different_tenant(
+        self,
+    ):
         self._authenticate(self.chair)
 
         response = self.client.get(
