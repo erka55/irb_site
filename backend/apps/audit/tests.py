@@ -920,6 +920,84 @@ class DjangoEventStoreRepositoryTests(TestCase):
         with self.assertRaises(Exception):
             repository.append(event)
 
+class EventPublisherAuditIntegrationTests(TestCase):
+
+    def setUp(self):
+        self.tenant = Tenant.objects.create(
+            code="publisher-audit-tenant",
+            name="Publisher Audit Tenant",
+        )
+
+        self.user = User.objects.create_user(
+            email="publisher-audit@test.com",
+            password="test-password",
+        )
+
+        self.protocol = Protocol.objects.create(
+            tenant=self.tenant,
+            title="Publisher Audit Test Protocol",
+            protocol_number="PUB-AUDIT-001",
+            principal_investigator=self.user,
+            risk_level="low",
+            status="draft",
+            summary="Publisher audit integration test protocol",
+        )
+
+    def test_publish_persists_audit_log_automatically(self):
+        event = ProtocolSubmitted(
+            tenant_id=self.tenant.id,
+            actor_id=self.user.id,
+            protocol_id=self.protocol.id,
+        )
+
+        publisher = get_event_publisher()
+        publisher.publish(event)
+
+        log = AuditLog.objects.get(
+            event_id=event.event_id,
+        )
+
+        self.assertEqual(
+            log.action,
+            event.event_type,
+        )
+        self.assertEqual(
+            log.tenant,
+            self.tenant,
+        )
+        self.assertEqual(
+            log.actor,
+            self.user,
+        )
+        self.assertEqual(
+            log.entity_id,
+            self.protocol.id,
+        )
+        self.assertEqual(
+            log.payload,
+            event.payload,
+        )
+        self.assertEqual(
+            log.occurred_at,
+            event.occurred_at,
+        )
+
+    def test_publish_creates_only_one_audit_log(self):
+        event = ProtocolSubmitted(
+            tenant_id=self.tenant.id,
+            actor_id=self.user.id,
+            protocol_id=self.protocol.id,
+        )
+
+        publisher = get_event_publisher()
+        publisher.publish(event)
+
+        self.assertEqual(
+            AuditLog.objects.filter(
+                event_id=event.event_id,
+            ).count(),
+            1,
+        )
 
 class AuditEventPublisherIntegrationTests(TestCase):
 
